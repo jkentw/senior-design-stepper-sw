@@ -5,6 +5,7 @@
 #include <QtCore>
 
 #include "imageinput.hpp"
+#include "FileSelect.hpp"
 
 int main(int argc, char *argv[])
 {
@@ -29,6 +30,9 @@ int main(int argc, char *argv[])
     ImageInput imgIn;
     engine.addImageProvider(QString("preview"), &imgIn);
     engine.rootContext()->setContextProperty("ImageInputCpp", &imgIn);
+
+    FileSelect fileSelect;
+    engine.rootContext()->setContextProperty("FileSelectCpp", &fileSelect);
     //end of my code
 
     engine.load(url);

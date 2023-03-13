@@ -8,6 +8,23 @@ Window {
     visible: true
     title: qsTr("Stepper Control")
 
+    //file upload class test
+    FileSelectItem {
+        prompt: "Choose Recipe"
+        anchors {
+            margins: 20
+            top: parent.top
+            left: parent.left
+        }
+    }
+
+    /*
+    //cross correlation test
+    width: 640
+    height: 480
+    visible: true
+    title: qsTr("Stepper Control")
+
     Button {
         id: patternFileSelectBtn
         onClicked: {
@@ -118,4 +135,5 @@ Window {
             crossCorrBtn.enabled = en
         }
     }
+    */
 }

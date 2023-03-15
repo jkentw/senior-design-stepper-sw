@@ -3,6 +3,7 @@ import QtQuick.Controls 2.0
 
 Item {
     property string prompt: qsTr("Select File")
+    property var processFileFunction: ({})
 
     implicitWidth: 240
     implicitHeight: 40
@@ -37,7 +38,6 @@ Item {
         function onFilePathChanged(str) {
             pathText.color = "blue"
             pathText.text = str
-            console.log("path changed")
         }
     }
 }

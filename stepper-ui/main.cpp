@@ -6,6 +6,7 @@
 
 #include "imageinput.hpp"
 #include "FileSelect.hpp"
+#include "Recipe.hpp"
 
 int main(int argc, char *argv[])
 {
@@ -33,6 +34,10 @@ int main(int argc, char *argv[])
 
     FileSelect fileSelect;
     engine.rootContext()->setContextProperty("FileSelectCpp", &fileSelect);
+
+    Recipe recipe;
+    //engine.rootContext()->setContextObject(&recipe);
+    engine.rootContext()->setContextProperty("RecipeCpp", &recipe);
     //end of my code
 
     engine.load(url);

@@ -11,10 +11,20 @@ Window {
     //file upload class test
     FileSelectItem {
         prompt: "Choose Recipe"
+        //processFileFunction: RecipeCpp.readRecipe(FileSelectCpp.filePath)
+
         anchors {
             margins: 20
             top: parent.top
             left: parent.left
+        }
+
+        Connections {
+            target: FileSelectCpp
+
+            function onFilePathChanged(str) {
+                RecipeCpp.readRecipe(str)
+            }
         }
     }
 

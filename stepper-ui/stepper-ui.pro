@@ -6,7 +6,8 @@ QT += widgets
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
-        main.cpp
+        main.cpp \
+        tinyxml2.cpp
 
 RESOURCES += qml.qrc
 
@@ -23,4 +24,6 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 
 HEADERS += \
     FileSelect.hpp \
-    imageinput.hpp
+    Recipe.hpp \
+    imageinput.hpp \
+    tinyxml2.h

@@ -8,7 +8,52 @@ Window {
     visible: true
     title: qsTr("Stepper Control")
 
+    //camera test
+    Button {
+        id: captureBtn
+
+        onClicked: {
+            CameraModuleCpp.captureImage()
+        }
+
+        anchors {
+            left: parent.left
+            top: parent.top
+            margins: 25
+        }
+
+        width: 160
+        height: 40
+        text: "Capture Image"
+    }
+
+    Image {
+        id: cameraFeed
+        cache: false
+
+        anchors {
+            left: captureBtn.right
+            top: captureBtn.top
+
+            margins: 25
+        }
+
+        height: parent.height - 25
+        sourceSize.width: width
+        sourceSize.height: height
+    }
+
+    Connections {
+        target: CameraModuleCpp
+
+        function onImageChanged() {
+            cameraFeed.source = ""
+            cameraFeed.source = "image://camera/frame"
+        }
+    }
+
     //file upload class test
+    /*
     FileSelectItem {
         prompt: "Choose Recipe"
         //processFileFunction: RecipeCpp.readRecipe(FileSelectCpp.filePath)
@@ -27,6 +72,7 @@ Window {
             }
         }
     }
+    */
 
     /*
     //cross correlation test

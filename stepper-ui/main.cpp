@@ -6,7 +6,8 @@
 
 #include "imageinput.hpp"
 #include "FileSelect.hpp"
-#include "Recipe.hpp"
+//#include "Recipe.hpp"
+#include "cameramodule.hpp"
 
 int main(int argc, char *argv[])
 {
@@ -32,12 +33,20 @@ int main(int argc, char *argv[])
     engine.addImageProvider(QString("preview"), &imgIn);
     engine.rootContext()->setContextProperty("ImageInputCpp", &imgIn);
 
+    //camera image provider
+    CameraModule camera;
+    if(CameraModule::initialize()) {
+        engine.addImageProvider(QString("camera"), &camera);
+        engine.rootContext()->setContextProperty("CameraModuleCpp", &camera);
+    }
+
     FileSelect fileSelect;
     engine.rootContext()->setContextProperty("FileSelectCpp", &fileSelect);
 
-    Recipe recipe;
+    //Recipe recipe;
     //engine.rootContext()->setContextObject(&recipe);
-    engine.rootContext()->setContextProperty("RecipeCpp", &recipe);
+    //engine.rootContext()->setContextProperty("RecipeCpp", &recipe);
+
     //end of my code
 
     engine.load(url);

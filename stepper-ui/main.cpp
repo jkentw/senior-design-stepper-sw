@@ -6,7 +6,14 @@
 
 #include "imageinput.hpp"
 #include "FileSelect.hpp"
-#include "Recipe.hpp"
+//#include "Recipe.hpp"
+#include "testbutton.hpp"
+#include "stagecontroller.h"
+
+void testI2c(void *params) {
+    something();
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -35,10 +42,15 @@ int main(int argc, char *argv[])
     FileSelect fileSelect;
     engine.rootContext()->setContextProperty("FileSelectCpp", &fileSelect);
 
+    /*
     Recipe recipe;
     //engine.rootContext()->setContextObject(&recipe);
     engine.rootContext()->setContextProperty("RecipeCpp", &recipe);
     //end of my code
+    */
+
+    TestButton i2cTestBtn(testI2c);
+    engine.rootContext()->setContextProperty("I2cTestCpp", &i2cTestBtn);
 
     engine.load(url);
 

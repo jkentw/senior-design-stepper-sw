@@ -8,7 +8,26 @@ Window {
     visible: true
     title: qsTr("Stepper Control")
 
+    Button {
+        id: i2cTestBtn
+
+        onClicked: {
+            I2cTestCpp.invoke()
+        }
+
+        anchors {
+            left: parent.left
+            top: parent.top
+            margins: 25
+        }
+
+        width: 160
+        height: 40
+        text: "Test I2C"
+    }
+
     //file upload class test
+    /*
     FileSelectItem {
         prompt: "Choose Recipe"
         //processFileFunction: RecipeCpp.readRecipe(FileSelectCpp.filePath)
@@ -27,6 +46,7 @@ Window {
             }
         }
     }
+    */
 
     /*
     //cross correlation test

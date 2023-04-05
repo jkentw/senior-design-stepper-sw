@@ -6,7 +6,14 @@
 
 #include "imageinput.hpp"
 #include "FileSelect.hpp"
-#include "Recipe.hpp"
+//#include "Recipe.hpp"
+
+#include "projectormodule.hpp"
+#include "testbutton.hpp"
+
+void testTheProjector(void *params) {
+    testProjector();
+}
 
 int main(int argc, char *argv[])
 {
@@ -35,9 +42,15 @@ int main(int argc, char *argv[])
     FileSelect fileSelect;
     engine.rootContext()->setContextProperty("FileSelectCpp", &fileSelect);
 
+    /*
     Recipe recipe;
     //engine.rootContext()->setContextObject(&recipe);
     engine.rootContext()->setContextProperty("RecipeCpp", &recipe);
+    */
+
+    TestButton projTestBtn(testTheProjector);
+    engine.rootContext()->setContextProperty("ProjectorTestCpp", &projTestBtn);
+
     //end of my code
 
     engine.load(url);

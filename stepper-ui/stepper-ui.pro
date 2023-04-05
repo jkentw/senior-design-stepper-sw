@@ -26,4 +26,6 @@ HEADERS += \
     FileSelect.hpp \
     Recipe.hpp \
     imageinput.hpp \
+    projectormodule.hpp \
+    testbutton.hpp \
     tinyxml2.h

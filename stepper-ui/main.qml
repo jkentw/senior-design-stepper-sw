@@ -8,6 +8,25 @@ Window {
     visible: true
     title: qsTr("Stepper Control")
 
+    Button {
+        id: projectorTestBtn
+
+        onClicked: {
+            ProjectorTestCpp.invoke()
+        }
+
+        anchors {
+            left: parent.left
+            top: parent.top
+            margins: 25
+        }
+
+        width: 160
+        height: 40
+        text: "Test Projector"
+    }
+
+    /*
     //file upload class test
     FileSelectItem {
         prompt: "Choose Recipe"
@@ -27,6 +46,7 @@ Window {
             }
         }
     }
+    */
 
     /*
     //cross correlation test

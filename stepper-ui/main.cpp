@@ -10,8 +10,20 @@
 #include "testbutton.hpp"
 #include "stagecontroller.h"
 
+#define DEBUG_MODE_GLOBAL
+
 void testI2c(void *params) {
-    something();
+    stagecontroller::openI2c();
+
+    __u32 width;
+
+    stagecontroller::addFrame(stagecontroller::CMD_GETWIDTH, 0);
+    stagecontroller::sendNextFrame();
+    stagecontroller::readResponse(&width);
+
+    printf("width: %d\n", width);
+
+    stagecontroller::closeI2c();
 }
 
 

@@ -4,15 +4,18 @@
 #include <QtQml>
 #include <QtCore>
 
+#define DEBUG_MODE_GLOBAL
+
 #include "imageinput.hpp"
 #include "FileSelect.hpp"
 //#include "Recipe.hpp"
 #include "testbutton.hpp"
 #include "stagecontroller.h"
 
-#define DEBUG_MODE_GLOBAL
-
 void testI2c(void *params) {
+    printf("beginning test\n");
+    fflush(stdout);
+
     stagecontroller::openI2c();
 
     __u32 width;
@@ -22,6 +25,7 @@ void testI2c(void *params) {
     stagecontroller::readResponse(&width);
 
     printf("width: %d\n", width);
+    fflush(stdout);
 
     stagecontroller::closeI2c();
 }

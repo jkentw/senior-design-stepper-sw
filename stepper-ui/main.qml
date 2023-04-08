@@ -3,6 +3,7 @@ import QtQuick.Window 2.15
 import QtQuick.Controls 2.0
 
 Window {
+    id: mainWindow
     width: 640
     height: 480
     visible: true
@@ -13,6 +14,7 @@ Window {
 
         onClicked: {
             ProjectorTestCpp.invoke()
+            projectorWindow.showFullScreen()
         }
 
         anchors {
@@ -24,6 +26,13 @@ Window {
         width: 160
         height: 40
         text: "Test Projector"
+    }
+
+    Window {
+        id: projectorWindow
+        width: 320
+        height: 240
+        visible: false
     }
 
     /*

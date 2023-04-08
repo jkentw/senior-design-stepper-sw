@@ -33,6 +33,7 @@ const __u32 ERROR_CHECKSUM = 1 << 27;
 static int i2cFd = 0;
 static int writeIndex = 0; //index of next available frame slot
 static int readIndex = 0; //index of next frame to send
+static int bufferLength = 0;
 static int lastCommand = -1;
 
 enum CommandID {
@@ -162,7 +163,7 @@ static __u8 calcChecksum(const struct frame *frame) {
 }
 
 static int getBufferLength() {
-    return (writeIndex - readIndex + BUF_SIZE) % BUF_SIZE;
+    return bufferLength;
 }
 
 void createFrame(struct frame *dest, CommandID command, __u32 data) {
@@ -181,7 +182,11 @@ bool addFrame(CommandID command, __u32 data) {
     if(getBufferLength() < BUF_SIZE) {
         struct frame *thisFrame = &buffer[writeIndex];
         createFrame(thisFrame, command, data);
+#ifdef DEBUG_MODE_I2C
+        printf("Added command of ID #%d at index %d\n", thisFrame->command, writeIndex);
+#endif
         writeIndex = (writeIndex + 1) % BUF_SIZE; //buffer is circular
+        bufferLength++;
         return true;
     }
     else
@@ -191,6 +196,9 @@ bool addFrame(CommandID command, __u32 data) {
 //Adds an existing frame to the circular queue. Frame assumed to be valid
 bool addFrame(const struct frame *dest) {
     if(getBufferLength() < BUF_SIZE) {
+#ifdef DEBUG_MODE_I2C
+        printf("Buffer length is now %d\n", getBufferLength());
+#endif
         __u8 *thisFrameBytes = (__u8 *) &buffer[writeIndex];
 
         //deep copy
@@ -199,6 +207,7 @@ bool addFrame(const struct frame *dest) {
         }
 
         writeIndex = (writeIndex + 1) % BUF_SIZE; //buffer is circular
+        bufferLength++;
         return true;
     }
     else
@@ -218,7 +227,7 @@ bool sendFrame(const struct frame *frame) {
     }
     else {
 #ifdef DEBUG_MODE_I2C
-        printf("I2C write successful.\n");
+        printf("I2C write successful\n");
 #endif
         lastCommand = frame->command; //update this so we know which response to look for
     }
@@ -231,7 +240,11 @@ bool sendNextFrame() {
     if(getBufferLength() > 0) {
         if(!sendFrame(&buffer[readIndex]))
             return false;
+#ifdef DEBUG_MODE_I2C
+        printf("Sent command of ID #%d from index %d\n", buffer[readIndex].command, readIndex);
+#endif
         readIndex = (readIndex + 1) % BUF_SIZE; //buffer is circular
+        bufferLength--;
     }
 
     return false;

@@ -19,12 +19,36 @@ void testI2c(void *params) {
     stagecontroller::openI2c();
 
     __u32 width;
+    __u32 height;
+    __u32 x;
+    __u32 y;
 
+    stagecontroller::addFrame(stagecontroller::CMD_CALIB, 0);
     stagecontroller::addFrame(stagecontroller::CMD_GETWIDTH, 0);
+    stagecontroller::addFrame(stagecontroller::CMD_GETHEIGHT, 0);
+    stagecontroller::addFrame(stagecontroller::CMD_GETX, 0);
+    stagecontroller::addFrame(stagecontroller::CMD_GETY, 0);
+    stagecontroller::addFrame(stagecontroller::CMD_SETX, 1000);
+    stagecontroller::addFrame(stagecontroller::CMD_SETY, 1000);
+    stagecontroller::addFrame(stagecontroller::CMD_HALT, 0);
+
+    stagecontroller::sendNextFrame();
     stagecontroller::sendNextFrame();
     stagecontroller::readResponse(&width);
+    stagecontroller::sendNextFrame();
+    stagecontroller::readResponse(&height);
+    stagecontroller::sendNextFrame();
+    stagecontroller::readResponse(&x);
+    stagecontroller::sendNextFrame();
+    stagecontroller::readResponse(&y);
+    stagecontroller::sendNextFrame();
+    stagecontroller::sendNextFrame();
+    stagecontroller::sendNextFrame();
 
-    printf("width: %d\n", width);
+    printf("width:  %d\n", width);
+    printf("height: %d\n", height);
+    printf("x:      %d\n", x);
+    printf("y:      %d\n", y);
     fflush(stdout);
 
     stagecontroller::closeI2c();

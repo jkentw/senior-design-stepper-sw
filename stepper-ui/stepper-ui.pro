@@ -29,3 +29,5 @@ HEADERS += \
     projectormodule.hpp \
     testbutton.hpp \
     tinyxml2.h
+
+DISTFILES +=

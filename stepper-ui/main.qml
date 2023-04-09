@@ -13,8 +13,14 @@ Window {
         id: projectorTestBtn
 
         onClicked: {
-            ProjectorTestCpp.invoke()
-            projectorWindow.showFullScreen()
+            console.log(Qt.application.screens[1])
+
+            if(Qt.application.screens[1] !== undefined) {
+                projectorWindow.setX(Qt.application.screens[0].width)
+                projectorWindow.showFullScreen()
+
+                //ProjectorTestCpp.invoke()
+            }
         }
 
         anchors {
@@ -32,7 +38,6 @@ Window {
         id: projectorWindow
         width: 320
         height: 240
-        visible: false
     }
 
     /*

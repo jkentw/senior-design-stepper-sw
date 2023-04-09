@@ -13,19 +13,8 @@
 #include "projectormodule.hpp"
 #include "testbutton.hpp"
 
-QWindow *mainWin;
-QScreen *secondaryScreen;
-
 void testTheProjector(void *params) {
     testProjector();
-
-    QWindow *projWin = mainWin->findChild<QWindow *>(QString::fromUtf8("projectorWindow"));
-    printf("Projector window handle retrieved(?)\n");
-    fflush(stdout);
-    //projWin->setScreen(secondaryScreen);
-    //projWin->setPosition(secondaryScreen->geometry().width(), 0);
-    printf("Attempted to set second screen\n");
-    fflush(stdout);
 }
 
 int main(int argc, char *argv[])
@@ -64,16 +53,8 @@ int main(int argc, char *argv[])
     TestButton projTestBtn(testTheProjector);
     engine.rootContext()->setContextProperty("ProjectorTestCpp", &projTestBtn);
 
-    secondaryScreen = app.screens()[0];
-    printf("secondary screen detected\n");
-    fflush(stdout);
-    mainWin = engine.findChild<QWindow *>(QString::fromUtf8("mainWindow"));
-    printf("Main window handle retrieved(?)\n");
-    fflush(stdout);
-
     //end of my code
 
     engine.load(url);
-
     return app.exec();
 }

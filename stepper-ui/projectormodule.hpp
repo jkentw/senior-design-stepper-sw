@@ -1,9 +1,6 @@
 #ifndef PROJECTORMODULE_HPP
 #define PROJECTORMODULE_HPP
 
-#ifndef STAGECONTROLLER_H
-#define STAGECONTROLLER_H
-
 #include <linux/fb.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
@@ -13,6 +10,137 @@
 #include <string.h>
 
 #include <cstdio>
+
+#include <QWidget>
+#include <QQuickImageProvider>
+
+#include "DynamicImage.h"
+
+#ifdef DEBUG_MODE_GLOBAL
+#define DEBUG_MODE_PROJECTOR
+#endif
+
+namespace projectormodule {
+
+static int projectorFd = -1; //projector file descriptor
+
+DynamicImage *projectedImage;
+static QImage *blankImage = nullptr;
+static QImage *patternImage = nullptr;
+static int width = 0;
+static int height = 0;
+
+bool openProjector();
+void closeProjector();
+void setPattern(QImage image);
+void show();
+void hide();
+void printErrno(int num);
+
+bool openProjector() {
+    __s32 res;
+    struct fb_fix_screeninfo fixedScrInfo;
+    struct fb_var_screeninfo varScrInfo;
+
+    //get file descriptor of hdmi framebuffer
+    projectorFd = open("/dev/fb0", O_RDWR); //make sure this is the correct framebuffer
+
+    if(projectorFd < 0) {
+#ifdef DEBUG_MODE_PROJECTOR
+        printf("[ProjectorModule] Device file not found\n");
+        fflush(stdout);
+#endif
+        return false;
+    }
+
+#ifdef DEBUG_MODE_PROJECTOR
+    printf("[ProjectorModule] Device file found\n");
+    fflush(stdout);
+#endif
+
+    //get variable screen info
+    res = ioctl(projectorFd, FBIOGET_VSCREENINFO, &varScrInfo);
+    int errsv = errno;
+
+    if(res == -1) {
+#ifdef DEBUG_MODE_PROJECTOR
+        printf("[ProjectorModule] Could not read variable screen info:\n\t");
+        printErrno(errsv);
+        fflush(stdout);
+#endif
+        closeProjector();
+        return false;
+    }
+
+    //get fixed screen info
+    res = ioctl(projectorFd, FBIOGET_FSCREENINFO, &fixedScrInfo);
+    errsv = errno;
+
+    if(res < 0) {
+#ifdef DEBUG_MODE_PROJECTOR
+        printf("[ProjectorModule] Could not read fixed screen info:\n\t");
+        printErrno(errsv);
+        fflush(stdout);
+#endif
+        closeProjector();
+        return false;
+    }
+
+#ifdef DEBUG_MODE_PROJECTOR
+    //print info
+    printf("[ProjectorModule] Variable display info: %dx%d, %d bpp\n", varScrInfo.xres, varScrInfo.yres, varScrInfo.bits_per_pixel);
+    printf("  Virtual size:        %dx%d\n", varScrInfo.xres_virtual, varScrInfo.yres_virtual);
+    printf("  Visible offset:      %dx%d\n", varScrInfo.xoffset, varScrInfo.yoffset);
+    fflush(stdout);
+#endif
+
+    //update width and height here
+    //width = varScrInfo.xres;
+    //height = varScrInfo.yres;
+    height = 768;
+    width = 1024;
+
+    blankImage = new QImage(projectormodule::width, projectormodule::height, QImage::Format::Format_RGB888);
+    blankImage->fill(Qt::black);
+    patternImage = blankImage;
+    projectedImage = new DynamicImage();
+    projectedImage->setImage(blankImage);
+
+    return true;
+}
+
+void closeProjector() {
+    if(projectorFd >= 0) {
+        close(projectorFd);
+        projectorFd = -1;
+    }
+
+    if(blankImage != nullptr) {
+        delete blankImage;
+        blankImage = nullptr;
+        patternImage = nullptr;
+    }
+}
+
+void setPattern(QImage *pattern) {
+    patternImage = pattern;
+}
+
+void show() {
+#ifdef DEBUG_MODE_PROJECTOR
+    printf("[ProjectorModule] Showing pattern image\n");
+    fflush(stdout);
+#endif
+    projectedImage->setImage(patternImage);
+}
+
+void hide() {
+#ifdef DEBUG_MODE_PROJECTOR
+    printf("[ProjectorModule] Showing blank image\n");
+    fflush(stdout);
+#endif
+    projectedImage->setImage(blankImage);
+}
 
 void printErrno(int num) {
     switch (num) {
@@ -55,82 +183,9 @@ void printErrno(int num) {
     default:
         printf("other: %08X\n", num);
     }
+    fflush(stdout);
 }
 
-void testProjector() {
-    __s32 res;
-    struct fb_fix_screeninfo fixedScrInfo;
-    struct fb_var_screeninfo varScrInfo;
-    unsigned long screenSize = 0;
-    char *fbMap = 0;
-
-    printf("'testProjector()' called\n");
-    printf("attempting to open framebuffer file\n");
-    fflush(stdout);
-
-    //get file descriptor of hdmi framebuffer
-    int projectorFd = open("/dev/fb0", O_RDWR); //make sure this is the correct framebuffer
-
-    if(projectorFd < 0) {
-        printf("device file not found\n");
-        fflush(stdout);
-        return;
-    }
-
-    printf("device file found\n");
-    fflush(stdout);
-
-    //get variable screen info
-    res = ioctl(projectorFd, FBIOGET_VSCREENINFO, &varScrInfo);
-    int errsv = errno;
-
-    if(res < 0) {
-        printf("could not read variable screen info:\n\t");
-        printErrno(errsv);
-        fflush(stdout);
-        close(projectorFd);
-        return;
-    }
-
-    //get fixed screen info
-    res = ioctl(projectorFd, FBIOGET_FSCREENINFO, &fixedScrInfo);
-    errsv = errno;
-
-    if(res < 0) {
-        printf("could not read fixed screen info:\n\t");
-        printErrno(errsv);
-        fflush(stdout);
-        close(projectorFd);
-        return;
-    }
-
-    //print info
-    printf("Variable display info: %dx%d, %d bpp\n", varScrInfo.xres, varScrInfo.yres, varScrInfo.bits_per_pixel);
-    printf("  Virtual size:        %dx%d\n", varScrInfo.xres_virtual, varScrInfo.yres_virtual);
-    printf("  Visible offset:      %dx%d\n", varScrInfo.xoffset, varScrInfo.yoffset);
-
-    screenSize = fixedScrInfo.smem_len;
-    fbMap = (char *) mmap(0, screenSize, PROT_READ | PROT_WRITE, MAP_SHARED, projectorFd, 0);
-
-    if((int) fbMap == -1) {
-        printf("mmap failed\n");
-        fflush(stdout);
-        close(projectorFd);
-        return;
-    }
-
-    for(int i = 0; i < 500; i++) {
-        memset(fbMap, 0x7F, screenSize/3);
-        memset(fbMap+screenSize/3, 0xBF, screenSize/3);
-        memset(fbMap+2*screenSize/3, 0xFF, screenSize/3);
-    }
-
-    printf("end of function reached\n");
-    fflush(stdout);
-    munmap(fbMap, screenSize);
-    close(projectorFd);
 }
-
-#endif // STAGECONTROLLER_H
 
 #endif // PROJECTORMODULE_HPP

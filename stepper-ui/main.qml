@@ -13,13 +13,13 @@ Window {
         id: projectorTestBtn
 
         onClicked: {
-            console.log(Qt.application.screens[1])
-
             if(Qt.application.screens[1] !== undefined) {
-                projectorWindow.setX(Qt.application.screens[0].width)
-                projectorWindow.showFullScreen()
+                if(!projectorWindow.visible) {
+                    projectorWindow.setX(Qt.application.screens[0].width)
+                    projectorWindow.showFullScreen()
+                }
 
-                //ProjectorTestCpp.invoke()
+                ProjectorTestCpp.invoke()
             }
         }
 
@@ -38,6 +38,29 @@ Window {
         id: projectorWindow
         width: 320
         height: 240
+
+        Image {
+            id: projectorImg
+            cache: false
+
+            anchors {
+                left: parent.left
+                right: parent.right
+                bottom: parent.bottom
+                top: parent.top
+
+                margins: 25
+            }
+        }
+
+        Connections {
+            target: ProjectorCpp
+
+            function onUpdateImage(img) {
+                projectorImg.source = ""
+                projectorImg.source = "image://projector/image"
+            }
+        }
     }
 
     /*

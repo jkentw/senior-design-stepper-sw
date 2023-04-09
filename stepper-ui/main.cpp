@@ -1,3 +1,5 @@
+#define DEBUG_MODE_GLOBAL
+
 #include <QApplication>
 #include <QQmlApplicationEngine>
 
@@ -13,8 +15,17 @@
 #include "projectormodule.hpp"
 #include "testbutton.hpp"
 
+static bool showing = false;
+
 void testTheProjector(void *params) {
-    testProjector();
+    if(showing) {
+        projectormodule::hide();
+    }
+    else {
+        projectormodule::show();
+    }
+
+    showing = !showing;
 }
 
 int main(int argc, char *argv[])
@@ -22,9 +33,6 @@ int main(int argc, char *argv[])
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
 #endif
-    //my code here
-
-    //end of my code
 
     QApplication app(argc, argv);
 
@@ -52,6 +60,15 @@ int main(int argc, char *argv[])
 
     TestButton projTestBtn(testTheProjector);
     engine.rootContext()->setContextProperty("ProjectorTestCpp", &projTestBtn);
+
+    QImage pattern("../../tests/inputs/pattern2.png");
+
+    projectormodule::openProjector();
+    projectormodule::setPattern(&pattern);
+
+    DynamicImage *projectorImage = projectormodule::projectedImage;
+    engine.addImageProvider(QString("projector"), projectorImage);
+    engine.rootContext()->setContextProperty("ProjectorCpp", projectorImage);
 
     //end of my code
 

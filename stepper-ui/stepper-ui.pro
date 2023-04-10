@@ -23,9 +23,13 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
 HEADERS += \
+    DynamicImage.h \
     FileSelect.hpp \
     Recipe.hpp \
     imageinput.hpp \
     stagecontroller.h \
+    projectormodule.hpp \
     testbutton.hpp \
     tinyxml2.h
+
+DISTFILES +=

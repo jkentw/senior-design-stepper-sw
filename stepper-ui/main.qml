@@ -3,6 +3,7 @@ import QtQuick.Window 2.15
 import QtQuick.Controls 2.0
 
 Window {
+    id: mainWindow
     width: 640
     height: 480
     visible: true
@@ -24,6 +25,60 @@ Window {
         width: 160
         height: 40
         text: "Test I2C"
+    }
+
+    Button {
+        id: projectorTestBtn
+
+        onClicked: {
+            if(Qt.application.screens[1] !== undefined) {
+                if(!projectorWindow.visible) {
+                    projectorWindow.setX(Qt.application.screens[0].width)
+                    projectorWindow.showFullScreen()
+                }
+
+                ProjectorTestCpp.invoke()
+            }
+        }
+
+        anchors {
+            left: parent.left
+            top: i2cTestBtn.bottom
+            margins: 25
+        }
+
+        width: 160
+        height: 40
+        text: "Test Projector"
+    }
+
+    Window {
+        id: projectorWindow
+        width: 320
+        height: 240
+
+        Image {
+            id: projectorImg
+            cache: false
+
+            anchors {
+                left: parent.left
+                right: parent.right
+                bottom: parent.bottom
+                top: parent.top
+
+                margins: 25
+            }
+        }
+
+        Connections {
+            target: ProjectorCpp
+
+            function onUpdateImage(img) {
+                projectorImg.source = ""
+                projectorImg.source = "image://projector/image"
+            }
+        }
     }
 
     //file upload class test

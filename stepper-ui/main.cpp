@@ -1,8 +1,12 @@
+#define DEBUG_MODE_GLOBAL
+
 #include <QApplication>
 #include <QQmlApplicationEngine>
 
 #include <QtQml>
 #include <QtCore>
+#include <QScreen>
+#include <QWindow>
 
 #define DEBUG_MODE_GLOBAL
 
@@ -11,6 +15,7 @@
 //#include "Recipe.hpp"
 #include "testbutton.hpp"
 #include "stagecontroller.h"
+#include "projectormodule.hpp"
 
 void testI2c(void *params) {
     printf("beginning test\n");
@@ -54,15 +59,24 @@ void testI2c(void *params) {
     stagecontroller::closeI2c();
 }
 
+static bool showing = false;
+
+void testProjector(void *params) {
+    if(showing) {
+        projectormodule::hide();
+    }
+    else {
+        projectormodule::show();
+    }
+
+    showing = !showing;
+}
 
 int main(int argc, char *argv[])
 {
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
 #endif
-    //my code here
-
-    //end of my code
 
     QApplication app(argc, argv);
 
@@ -86,13 +100,25 @@ int main(int argc, char *argv[])
     Recipe recipe;
     //engine.rootContext()->setContextObject(&recipe);
     engine.rootContext()->setContextProperty("RecipeCpp", &recipe);
-    //end of my code
     */
+
+    TestButton projTestBtn(testProjector);
+    engine.rootContext()->setContextProperty("ProjectorTestCpp", &projTestBtn);
+
+    QImage pattern("../../tests/inputs/pattern2.png");
+
+    projectormodule::openProjector();
+    projectormodule::setPattern(&pattern);
+
+    DynamicImage *projectorImage = projectormodule::projectedImage;
+    engine.addImageProvider(QString("projector"), projectorImage);
+    engine.rootContext()->setContextProperty("ProjectorCpp", projectorImage);
 
     TestButton i2cTestBtn(testI2c);
     engine.rootContext()->setContextProperty("I2cTestCpp", &i2cTestBtn);
 
-    engine.load(url);
+    //end of my code
 
+    engine.load(url);
     return app.exec();
 }

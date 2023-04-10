@@ -21,6 +21,10 @@ public:
     explicit DynamicImage() : QWidget(nullptr), QQuickImageProvider(QQuickImageProvider::Pixmap) {}
 
     void setImage(QImage *image) {
+#ifdef DEBUG_MODE_DYNAMIC_IMAGE
+        printf("[DynamicImage] New image set (%p)\n", image);
+        fflush(stdout);
+#endif
         this->image = image;
         emit updateImage(*image);
     }

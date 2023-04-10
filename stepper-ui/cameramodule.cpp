@@ -1,103 +1,150 @@
-#include <iostream>
+#include "config.hpp"
+
 #include "cameramodule.hpp"
 
-HAmcam CameraModule::cameraHandle;
-int CameraModule::width;
-int CameraModule::height;
-void* CameraModule::imageData;
-QPixmap *CameraModule::pixmap;
-CameraModule *CameraModule::globalInstance;
+#ifdef DEBUG_MODE_GLOBAL
+#define DEBUG_MODE_CAMERA
+#endif
 
-CameraModule::CameraModule() : QWidget(nullptr), QQuickImageProvider(QQuickImageProvider::Pixmap) {
-    globalInstance = this;
-}
+#ifdef DEBUG_MODE_CAMERA
+#include <cstdio>
+#endif
 
-bool CameraModule::initialize()
+namespace camera_module {
+
+DynamicImage *cameraImage;
+static HAmcam cameraHandle = NULL;
+static int width = 0;
+static int height = 0;
+static void* imageData = NULL;
+static QImage *imagePtr = NULL;
+
+static void __stdcall callback(unsigned nEvent, void* pCallbackCtx);
+
+bool openCamera()
 {
+    if(cameraHandle) {
+#ifdef DEBUG_MODE_CAMERA
+        printf("[CameraModule] Camera is already open\n");
+        fflush(stdout);
+#endif
+        return true;
+    }
+
     cameraHandle = Amcam_Open(NULL);
     imageData = NULL;
-    pixmap = NULL;
+    imagePtr = NULL;
 
     if(cameraHandle == NULL) {
-        std::cout << "no camera found or open failed" << std::endl;
+#ifdef DEBUG_MODE_CAMERA
+        printf("[CameraModule] No camera found or open failed\n");
+        fflush(stdout);
+#endif
         return false;
     }
 
     HRESULT hr = Amcam_get_Size(cameraHandle, &width, &height);
 
     if (FAILED(hr)) {
-        std::cout << "failed to get size, hr = " << hr << std::endl;
+#ifdef DEBUG_MODE_CAMERA
+        printf("[CameraModule] Failed to get size; hr = %d\n");
+        fflush(stdout);
+#endif
         return false;
     }
     else {
         imageData = malloc(TDIBWIDTHBYTES(24 * width) * height);
         if (NULL == imageData) {
-            std::cout <<  "failed to malloc\n" << std::endl;
+#ifdef DEBUG_MODE_CAMERA
+            printf("[CameraModule] Failed to allocate memory for image data\n");
+            fflush(stdout);
+#endif
             return false;
         }
     }
 
-    pixmap = new QPixmap;
-    std::cout << "camera opened\n" << std::endl;
+    imagePtr = new QImage(width, height, QImage::Format_RGB888);
+    imagePtr->fill(Qt::black);
+
+    cameraImage = new DynamicImage();
+    cameraImage->setImage(imagePtr);
+
+#ifdef DEBUG_MODE_CAMERA
+    printf("[CameraModule] Camera opened\n");
+    fflush(stdout);
+#endif
     return true;
 }
 
-void CameraModule::terminate()
+void closeCamera()
 {
-    Amcam_Close(cameraHandle);
-    cameraHandle = NULL;
+    if(cameraHandle) {
+        Amcam_Close(cameraHandle);
+        cameraHandle = NULL;
+    }
 
     if(imageData) {
         free(imageData);
         imageData = NULL;
     }
 
-    if(pixmap) {
-        delete pixmap;
+    if(imagePtr) {
+        delete imagePtr;
+        imagePtr = NULL;
     }
+
+#ifdef DEBUG_MODE_CAMERA
+    printf("[CameraModule] Camera closed\n");
+    fflush(stdout);
+#endif
 }
 
-bool CameraModule::captureImage()
+bool captureImage()
 {
-    HRESULT hr = Amcam_StartPullModeWithCallback(cameraHandle, &CameraModule::callback, NULL);
+    HRESULT hr = Amcam_StartPullModeWithCallback(cameraHandle, &callback, NULL);
     if (FAILED(hr)) {
-        std::cout << "failed to start camera, hr = " << hr << std::endl;
+#ifdef DEBUG_MODE_CAMERA
+        printf("[CameraModule] Failed to start camera, hr = %d\n", hr);
+        fflush(stdout);
+#endif
         return false;
     }
     else {
-        printf("waiting...\n");
+#ifdef DEBUG_MODE_CAMERA
+        printf("[CameraModule] Waiting... ");
+        fflush(stdout);
+#endif
         return true;
     }
 }
 
-void CameraModule::callback(unsigned nEvent, void *pCallbackCtx)
+void callback(unsigned nEvent, void *pCallbackCtx)
 {
     if (AMCAM_EVENT_IMAGE == nEvent) {
-        AmcamFrameInfoV2 info = { 0 };
+        AmcamFrameInfoV2 info = {};
         HRESULT hr = Amcam_PullImageV2(cameraHandle, imageData, 24, &info);
         if (FAILED(hr)) {
-            std::cout << "failed to pull image, hr = " << hr << std::endl;
+#ifdef DEBUG_MODE_CAMERA
+            printf("[CameraModule] failed to pull image, hr = %d\n", hr);
+            fflush(stdout);
+#endif
         }
         else {
-            std::cout << "image captured" << std::endl;
+#ifdef DEBUG_MODE_CAMERA
+            printf(" Image captured.\n");
+            fflush(stdout);
+#endif
             QImage img((const uchar *) imageData, width, height, QImage::Format_RGB888);
-            *pixmap = QPixmap::fromImage(img);
-
-            emit globalInstance->imageChanged();
+            *imagePtr = img;
+            cameraImage->setImage(imagePtr);
         }
     }
     else {
-        std::cout << "other callback: " << nEvent << std::endl;
+#ifdef DEBUG_MODE_CAMERA
+        printf("[CameraModule] Other callback: %d\n", nEvent);
+        fflush(stdout);
+#endif
     }
 }
 
-QPixmap CameraModule::requestPixmap(const QString &id, QSize *size, const QSize &requestedSize) {
-    if(id == "frame") {
-        size->setWidth(width);
-        size->setHeight(height);
-        return *pixmap;
-    }
-    else {
-        return QPixmap();
-    }
 }

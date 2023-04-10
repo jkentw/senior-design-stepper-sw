@@ -29,6 +29,7 @@ HEADERS += \
     Recipe.hpp \
     amcam.h \
     cameramodule.hpp \
+    config.hpp \
     imageinput.hpp \
     stagecontroller.h \
     projectormodule.hpp \

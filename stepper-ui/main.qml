@@ -86,7 +86,7 @@ Window {
         id: captureBtn
 
         onClicked: {
-            CameraModuleCpp.captureImage()
+            CameraTestCpp.invoke()
         }
 
         anchors {
@@ -110,18 +110,14 @@ Window {
 
             margins: 25
         }
-
-        height: parent.height - 25
-        sourceSize.width: width
-        sourceSize.height: height
     }
 
     Connections {
-        target: CameraModuleCpp
+        target: CameraCpp
 
-        function onImageChanged() {
+        function onUpdateImage(img) {
             cameraFeed.source = ""
-            cameraFeed.source = "image://camera/frame"
+            cameraFeed.source = "image://camera/image"
         }
     }
 

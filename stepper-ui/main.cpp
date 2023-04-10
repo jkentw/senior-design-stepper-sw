@@ -1,4 +1,4 @@
-#define DEBUG_MODE_GLOBAL
+#include "config.hpp"
 
 #include <QApplication>
 #include <QQmlApplicationEngine>
@@ -7,8 +7,6 @@
 #include <QtCore>
 #include <QScreen>
 #include <QWindow>
-
-#define DEBUG_MODE_GLOBAL
 
 #include "imageinput.hpp"
 #include "FileSelect.hpp"
@@ -73,6 +71,17 @@ void testProjector(void *params) {
     showing = !showing;
 }
 
+void testCamera(void *params) {
+    printf("test\n");
+    fflush(stdout);
+
+    if(camera_module::openCamera()) { //redundant calls simply return true if camera is open
+        printf("TEST\n");
+        fflush(stdout);
+        camera_module::captureImage();
+    }
+}
+
 int main(int argc, char *argv[])
 {
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
@@ -119,11 +128,15 @@ int main(int argc, char *argv[])
     engine.addImageProvider(QString("projector"), projectorImage);
     engine.rootContext()->setContextProperty("ProjectorCpp", projectorImage);
 
-    //camera image provider
-    CameraModule camera;
-    if(CameraModule::initialize()) {
-        engine.addImageProvider(QString("camera"), &camera);
-        engine.rootContext()->setContextProperty("CameraModuleCpp", &camera);
+    //camera test code
+    TestButton cameraTestBtn(testCamera);
+    engine.rootContext()->setContextProperty("CameraTestCpp", &cameraTestBtn);
+
+    DynamicImage *cameraImage;
+    if(camera_module::openCamera()) {
+        cameraImage = camera_module::cameraImage;
+        engine.addImageProvider(QString("camera"), cameraImage);
+        engine.rootContext()->setContextProperty("CameraCpp", cameraImage);
     }
 
     //end of my code

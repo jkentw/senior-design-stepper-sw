@@ -2,5 +2,6 @@
     <qresource prefix="/">
         <file>main.qml</file>
         <file>FileSelectItem.qml</file>
+        <file>module_tests.qml</file>
     </qresource>
 </RCC>

@@ -13,6 +13,7 @@ Item {
         text: parent.prompt
         width: 160
         height: 40
+        y: (parent.height - height)/2
 
         onClicked: {
             FileSelectCpp.fileSelect()
@@ -23,7 +24,6 @@ Item {
         id: pathText
         text: "No file selected."
         color: "gray"
-
         y: (parent.height - height)/2
 
         anchors {

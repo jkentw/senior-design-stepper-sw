@@ -1,7 +1,6 @@
 import QtQuick 2.15
 import QtQuick.Window 2.15
 import QtQuick.Controls 2.0
-import QtQuick.Layouts 1.3
 
 Window {
     id: mainWindow
@@ -10,120 +9,6 @@ Window {
     visible: true
     title: qsTr("Stepper Control")
 
-    GridLayout {
-        id: mainLayout
-        anchors.fill: parent
-
-        columns: 4
-        rows: 5
-
-        FileSelectItem {
-            id: recipeSelect
-            prompt: "Choose Recipe"
-            //processFileFunction: RecipeCpp.readRecipe(FileSelectCpp.filePath)
-
-            Layout.row: 1
-            Layout.column: 1
-            Layout.fillHeight: true
-            Layout.fillWidth: true
-            Layout.margins: 25
-
-            Connections {
-                target: FileSelectCpp
-
-                function onFilePathChanged(str) {
-                    RecipeCpp.readRecipe(str)
-                }
-            }
-        }
-
-        Label {
-            Layout.row: 2
-            Layout.rowSpan: 2
-            Layout.column: 1
-            Layout.fillHeight: true
-            Layout.fillWidth: true
-            Layout.margins: 25
-
-            text: "recipe placeholder text"
-        }
-
-        Button {
-            id: startStopBtn
-            text: "START"
-            enabled: false
-
-            Layout.row: 4
-            Layout.column: 1
-            Layout.fillHeight: true
-            Layout.fillWidth: true
-            Layout.margins: 25
-
-            onClicked: {
-                //ProcessControlCpp.abc()
-            }
-        }
-
-        Label {
-            Layout.row: 5
-            Layout.column: 1
-            Layout.fillHeight: true
-            Layout.fillWidth: true
-            Layout.margins: 25
-
-            text: "progress placeholder text (M/N dies patterned)"
-        }
-
-        ProgressBar {
-            id: recipeProgress
-            value: 0.65
-
-            Layout.row: 6
-            Layout.column: 1
-            Layout.columnSpan: 2
-            Layout.fillHeight: true
-            Layout.fillWidth: true
-            Layout.margins: 25
-        }
-
-        Image {
-            id: patternPreview
-            Layout.row: 6
-            Layout.column: 1
-            Layout.columnSpan: 2
-            Layout.fillHeight: true
-            Layout.fillWidth: true
-            Layout.margins: 25
-        }
-
-        Label {
-            id: waferView
-            text: "wafer view placeholder"
-
-            Layout.row: 2
-            Layout.rowSpan: 2
-            Layout.column: 2
-            Layout.fillHeight: true
-            Layout.fillWidth: true
-            Layout.margins: 25
-        }
-
-        Label {
-            id: processStatus
-            text: "status placeholder (stage position, current state)"
-
-            Layout.row: 4
-            Layout.rowSpan: 2
-            Layout.column: 2
-            Layout.fillHeight: true
-            Layout.fillWidth: true
-            Layout.margins: 25
-        }
-
-
-    }
-
-    /*
     Button {
         id: i2cTestBtn
 
@@ -262,7 +147,6 @@ Window {
             cameraCapture.source = "image://camera_still/image"
         }
     }
-    */
 
     //file upload class test
     /*

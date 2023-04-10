@@ -12,17 +12,29 @@
 
 namespace camera_module {
 
-DynamicImage *cameraImage;
+static const int liveIndex = 1;
+static const int stillIndex = 0;
+
 static HAmcam cameraHandle = NULL;
-static int width = 0;
-static int height = 0;
-static void* imageData = NULL;
-static QImage *imagePtr = NULL;
+
+static int liveWidth = 0;
+static int liveHeight = 0;
+DynamicImage *liveImage = NULL;
+static void *liveData = NULL;
+static QImage *livePtr = NULL;
+
+static int stillWidth = 0;
+static int stillHeight = 0;
+DynamicImage *stillImage = NULL;
+static void *stillData = NULL;
+static QImage *stillPtr = NULL;
 
 static void __stdcall callback(unsigned nEvent, void* pCallbackCtx);
 
 bool openCamera()
 {
+    HRESULT hr;
+
     if(cameraHandle) {
 #ifdef DEBUG_MODE_CAMERA
         printf("[CameraModule] Camera is already open\n");
@@ -32,8 +44,10 @@ bool openCamera()
     }
 
     cameraHandle = Amcam_Open(NULL);
-    imageData = NULL;
-    imagePtr = NULL;
+    liveData = NULL;
+    livePtr = NULL;
+    stillData = NULL;
+    stillPtr = NULL;
 
     if(cameraHandle == NULL) {
 #ifdef DEBUG_MODE_CAMERA
@@ -43,34 +57,65 @@ bool openCamera()
         return false;
     }
 
-    HRESULT hr = Amcam_get_Size(cameraHandle, &width, &height);
+    hr = Amcam_put_eSize(cameraHandle, stillIndex);
+    if(SUCCEEDED(hr))
+        hr = Amcam_get_Size(cameraHandle, &stillWidth, &stillHeight);
 
     if (FAILED(hr)) {
 #ifdef DEBUG_MODE_CAMERA
-        printf("[CameraModule] Failed to get size; hr = %d\n");
+        printf("[CameraModule] Failed to set or get still size; hr = %d\n", hr);
         fflush(stdout);
 #endif
         return false;
     }
     else {
-        imageData = malloc(TDIBWIDTHBYTES(24 * width) * height);
-        if (NULL == imageData) {
+        stillData = malloc(TDIBWIDTHBYTES(24 * stillWidth) * stillHeight);
+        if (NULL == stillData) {
 #ifdef DEBUG_MODE_CAMERA
-            printf("[CameraModule] Failed to allocate memory for image data\n");
+            printf("[CameraModule] Failed to allocate memory for still image data\n");
             fflush(stdout);
 #endif
             return false;
         }
     }
 
-    imagePtr = new QImage(width, height, QImage::Format_RGB888);
-    imagePtr->fill(Qt::black);
+    hr = Amcam_put_eSize(cameraHandle, liveIndex);
+    if(SUCCEEDED(hr))
+        hr = Amcam_get_Size(cameraHandle, &liveWidth, &liveHeight);
 
-    cameraImage = new DynamicImage();
-    cameraImage->setImage(imagePtr);
+    if (FAILED(hr)) {
+#ifdef DEBUG_MODE_CAMERA
+        printf("[CameraModule] Failed to set or get live size; hr = %d\n", hr);
+        fflush(stdout);
+#endif
+        return false;
+    }
+    else {
+        liveData = malloc(TDIBWIDTHBYTES(24 * liveWidth) * liveHeight);
+        if (NULL == liveData) {
+#ifdef DEBUG_MODE_CAMERA
+            printf("[CameraModule] Failed to allocate memory for live image data\n");
+            fflush(stdout);
+#endif
+            return false;
+        }
+    }
+
+    livePtr = new QImage(liveWidth, liveHeight, QImage::Format_RGB888);
+    livePtr->fill(Qt::black);
+
+    liveImage = new DynamicImage();
+    liveImage->setImage(livePtr);
+
+    stillPtr = new QImage(stillWidth, stillHeight, QImage::Format_RGB888);
+    stillPtr->fill(Qt::black);
+
+    stillImage = new DynamicImage();
+    stillImage->setImage(stillPtr);
 
 #ifdef DEBUG_MODE_CAMERA
-    printf("[CameraModule] Camera opened\n");
+    printf("[CameraModule] Camera opened: live resolution %dx%d, still resolution %dx%d\n",
+           liveWidth, liveHeight, stillWidth, stillHeight);
     fflush(stdout);
 #endif
     return true;
@@ -83,14 +128,34 @@ void closeCamera()
         cameraHandle = NULL;
     }
 
-    if(imageData) {
-        free(imageData);
-        imageData = NULL;
+    if(liveImage) {
+        delete liveImage;
+        liveImage = NULL;
     }
 
-    if(imagePtr) {
-        delete imagePtr;
-        imagePtr = NULL;
+    if(liveData) {
+        free(liveData);
+        liveData = NULL;
+    }
+
+    if(livePtr) {
+        delete livePtr;
+        livePtr = NULL;
+    }
+
+    if(stillImage) {
+        delete stillImage;
+        stillImage = NULL;
+    }
+
+    if(stillData) {
+        free(stillData);
+        stillData = NULL;
+    }
+
+    if(stillPtr) {
+        delete stillPtr;
+        stillPtr = NULL;
     }
 
 #ifdef DEBUG_MODE_CAMERA
@@ -102,6 +167,7 @@ void closeCamera()
 bool captureImage()
 {
     HRESULT hr = Amcam_StartPullModeWithCallback(cameraHandle, &callback, NULL);
+    HRESULT hr2 = Amcam_Snap(cameraHandle, 0);
     if (FAILED(hr)) {
 #ifdef DEBUG_MODE_CAMERA
         printf("[CameraModule] Failed to start camera, hr = %d\n", hr);
@@ -120,23 +186,45 @@ bool captureImage()
 
 void callback(unsigned nEvent, void *pCallbackCtx)
 {
+    HRESULT hr;
+    AmcamFrameInfoV2 info = {};
+
     if (AMCAM_EVENT_IMAGE == nEvent) {
-        AmcamFrameInfoV2 info = {};
-        HRESULT hr = Amcam_PullImageV2(cameraHandle, imageData, 24, &info);
+        hr = Amcam_PullImageV2(cameraHandle, liveData, 24, &info);
+
         if (FAILED(hr)) {
 #ifdef DEBUG_MODE_CAMERA
-            printf("[CameraModule] failed to pull image, hr = %d\n", hr);
+            printf("[CameraModule] Failed to pull image, hr = %d\n", hr);
             fflush(stdout);
 #endif
         }
         else {
 #ifdef DEBUG_MODE_CAMERA
-            printf(" Image captured.\n");
+            printf("[CameraModule] Live image captured.\n");
             fflush(stdout);
 #endif
-            QImage img((const uchar *) imageData, width, height, QImage::Format_RGB888);
-            *imagePtr = img;
-            cameraImage->setImage(imagePtr);
+            QImage img((const uchar *) liveData, liveWidth, liveHeight, QImage::Format_RGB888);
+            *livePtr = img;
+            liveImage->setImage(livePtr);
+        }
+    }
+    else if(AMCAM_EVENT_STILLIMAGE == nEvent) {
+        hr = Amcam_PullStillImageV2(cameraHandle, stillData, 24, &info);
+
+        if (FAILED(hr)) {
+#ifdef DEBUG_MODE_CAMERA
+            printf("[CameraModule] Failed to pull image, hr = %d\n", hr);
+            fflush(stdout);
+#endif
+        }
+        else {
+#ifdef DEBUG_MODE_CAMERA
+            printf("[CameraModule] Still image captured.\n");
+            fflush(stdout);
+#endif
+            QImage img((const uchar *) stillData, stillWidth, stillHeight, QImage::Format_RGB888);
+            *stillPtr = img;
+            stillImage->setImage(stillPtr);
         }
     }
     else {

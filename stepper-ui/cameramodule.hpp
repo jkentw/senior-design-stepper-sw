@@ -9,7 +9,8 @@
 #include "DynamicImage.h"
 
 namespace camera_module {
-    extern DynamicImage *cameraImage;
+    extern DynamicImage *liveImage;
+    extern DynamicImage *stillImage;
 
     bool openCamera();
     void closeCamera();

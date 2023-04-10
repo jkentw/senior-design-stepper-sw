@@ -72,12 +72,7 @@ void testProjector(void *params) {
 }
 
 void testCamera(void *params) {
-    printf("test\n");
-    fflush(stdout);
-
     if(camera_module::openCamera()) { //redundant calls simply return true if camera is open
-        printf("TEST\n");
-        fflush(stdout);
         camera_module::captureImage();
     }
 }
@@ -132,11 +127,16 @@ int main(int argc, char *argv[])
     TestButton cameraTestBtn(testCamera);
     engine.rootContext()->setContextProperty("CameraTestCpp", &cameraTestBtn);
 
-    DynamicImage *cameraImage;
+    DynamicImage *liveImage;
+    DynamicImage *stillImage;
     if(camera_module::openCamera()) {
-        cameraImage = camera_module::cameraImage;
-        engine.addImageProvider(QString("camera"), cameraImage);
-        engine.rootContext()->setContextProperty("CameraCpp", cameraImage);
+        liveImage = camera_module::liveImage;
+        engine.addImageProvider(QString("camera_live"), liveImage);
+        engine.rootContext()->setContextProperty("CameraLiveCpp", liveImage);
+
+        stillImage = camera_module::stillImage;
+        engine.addImageProvider(QString("camera_still"), stillImage);
+        engine.rootContext()->setContextProperty("CameraStillCpp", stillImage);
     }
 
     //end of my code

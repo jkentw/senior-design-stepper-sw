@@ -110,14 +110,41 @@ Window {
 
             margins: 25
         }
+
+        sourceSize.width: 160
+        sourceSize.height: 120
     }
 
     Connections {
-        target: CameraCpp
+        target: CameraLiveCpp
 
         function onUpdateImage(img) {
             cameraFeed.source = ""
-            cameraFeed.source = "image://camera/image"
+            cameraFeed.source = "image://camera_live/image"
+        }
+    }
+
+    Image {
+        id: cameraCapture
+        cache: false
+
+        anchors {
+            left: cameraFeed.right
+            top: parent.top
+
+            margins: 25
+        }
+
+        sourceSize.width: 320
+        sourceSize.height: 240
+    }
+
+    Connections {
+        target: CameraStillCpp
+
+        function onUpdateImage(img) {
+            cameraCapture.source = ""
+            cameraCapture.source = "image://camera_still/image"
         }
     }
 

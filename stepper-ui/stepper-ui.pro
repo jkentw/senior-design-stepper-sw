@@ -6,6 +6,7 @@ QT += widgets
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+        cameramodule.cpp \
         main.cpp \
         tinyxml2.cpp
 
@@ -26,6 +27,8 @@ HEADERS += \
     DynamicImage.h \
     FileSelect.hpp \
     Recipe.hpp \
+    amcam.h \
+    cameramodule.hpp \
     imageinput.hpp \
     stagecontroller.h \
     projectormodule.hpp \
@@ -33,3 +36,8 @@ HEADERS += \
     tinyxml2.h
 
 DISTFILES +=
+
+unix:!macx: LIBS += -L$$PWD/../amcamsdk/ -lamcam
+
+INCLUDEPATH += $$PWD/../amcamsdk
+DEPENDPATH += $$PWD/../amcamsdk

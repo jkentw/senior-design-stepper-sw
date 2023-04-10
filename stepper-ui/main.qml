@@ -81,6 +81,50 @@ Window {
         }
     }
 
+    //camera test
+    Button {
+        id: captureBtn
+
+        onClicked: {
+            CameraModuleCpp.captureImage()
+        }
+
+        anchors {
+            left: parent.left
+            top: projectorTestBtn.bottom
+            margins: 25
+        }
+
+        width: 160
+        height: 40
+        text: "Capture Image"
+    }
+
+    Image {
+        id: cameraFeed
+        cache: false
+
+        anchors {
+            left: captureBtn.right
+            top: parent.top
+
+            margins: 25
+        }
+
+        height: parent.height - 25
+        sourceSize.width: width
+        sourceSize.height: height
+    }
+
+    Connections {
+        target: CameraModuleCpp
+
+        function onImageChanged() {
+            cameraFeed.source = ""
+            cameraFeed.source = "image://camera/frame"
+        }
+    }
+
     //file upload class test
     /*
     FileSelectItem {

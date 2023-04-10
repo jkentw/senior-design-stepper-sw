@@ -16,6 +16,7 @@
 #include "testbutton.hpp"
 #include "stagecontroller.h"
 #include "projectormodule.hpp"
+#include "cameramodule.hpp"
 
 void testI2c(void *params) {
     printf("beginning test\n");
@@ -98,15 +99,19 @@ int main(int argc, char *argv[])
 
     /*
     Recipe recipe;
-    //engine.rootContext()->setContextObject(&recipe);
+    engine.rootContext()->setContextObject(&recipe);
     engine.rootContext()->setContextProperty("RecipeCpp", &recipe);
     */
 
+    //I2C test code
+    TestButton i2cTestBtn(testI2c);
+    engine.rootContext()->setContextProperty("I2cTestCpp", &i2cTestBtn);
+
+    //projector test code
     TestButton projTestBtn(testProjector);
     engine.rootContext()->setContextProperty("ProjectorTestCpp", &projTestBtn);
 
     QImage pattern("../../tests/inputs/pattern2.png");
-
     projectormodule::openProjector();
     projectormodule::setPattern(&pattern);
 
@@ -114,8 +119,12 @@ int main(int argc, char *argv[])
     engine.addImageProvider(QString("projector"), projectorImage);
     engine.rootContext()->setContextProperty("ProjectorCpp", projectorImage);
 
-    TestButton i2cTestBtn(testI2c);
-    engine.rootContext()->setContextProperty("I2cTestCpp", &i2cTestBtn);
+    //camera image provider
+    CameraModule camera;
+    if(CameraModule::initialize()) {
+        engine.addImageProvider(QString("camera"), &camera);
+        engine.rootContext()->setContextProperty("CameraModuleCpp", &camera);
+    }
 
     //end of my code
 

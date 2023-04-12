@@ -10,6 +10,7 @@ Window {
     visible: true
     title: qsTr("Stepper Control")
 
+    /*
     GridLayout {
         id: mainLayout
         anchors.fill: parent
@@ -122,8 +123,8 @@ Window {
 
 
     }
+    */
 
-    /*
     Button {
         id: i2cTestBtn
 
@@ -262,7 +263,6 @@ Window {
             cameraCapture.source = "image://camera_still/image"
         }
     }
-    */
 
     //file upload class test
     /*

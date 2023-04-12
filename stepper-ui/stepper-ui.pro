@@ -26,6 +26,7 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 HEADERS += \
     DynamicImage.h \
     FileSelect.hpp \
+    ProcessControl.hpp \
     Recipe.hpp \
     amcam.h \
     cameramodule.hpp \

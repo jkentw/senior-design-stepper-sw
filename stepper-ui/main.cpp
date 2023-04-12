@@ -115,7 +115,7 @@ int main(int argc, char *argv[])
     TestButton projTestBtn(testProjector);
     engine.rootContext()->setContextProperty("ProjectorTestCpp", &projTestBtn);
 
-    QImage pattern("../../tests/inputs/pattern2.png");
+    QImage pattern("../../tests/inputs/pattern4.png");
     projectormodule::openProjector();
     projectormodule::setPattern(&pattern);
 

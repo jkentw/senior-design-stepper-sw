@@ -265,14 +265,12 @@ Window {
     }
 
     //file upload class test
-    /*
     FileSelectItem {
         prompt: "Choose Recipe"
-        //processFileFunction: RecipeCpp.readRecipe(FileSelectCpp.filePath)
 
         anchors {
-            margins: 20
-            top: parent.top
+            margins: 25
+            top: captureBtn.bottom
             left: parent.left
         }
 
@@ -284,7 +282,6 @@ Window {
             }
         }
     }
-    */
 
     /*
     //cross correlation test

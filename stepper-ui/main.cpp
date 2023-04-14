@@ -10,7 +10,7 @@
 
 #include "imageinput.hpp"
 #include "FileSelect.hpp"
-//#include "Recipe.hpp"
+#include "Recipe.hpp"
 #include "testbutton.hpp"
 #include "stagecontroller.h"
 #include "projectormodule.hpp"
@@ -101,11 +101,10 @@ int main(int argc, char *argv[])
     FileSelect fileSelect;
     engine.rootContext()->setContextProperty("FileSelectCpp", &fileSelect);
 
-    /*
+    //Recipe test code
     Recipe recipe;
     engine.rootContext()->setContextObject(&recipe);
     engine.rootContext()->setContextProperty("RecipeCpp", &recipe);
-    */
 
     //I2C test code
     TestButton i2cTestBtn(testI2c);

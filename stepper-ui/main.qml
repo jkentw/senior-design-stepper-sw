@@ -129,7 +129,7 @@ Window {
         id: i2cTestBtn
 
         onClicked: {
-            I2cTestCpp.invoke()
+            I2cTestCpp.invoke(undefined)
         }
 
         anchors {
@@ -153,7 +153,7 @@ Window {
                     projectorWindow.showFullScreen()
                 }
 
-                ProjectorTestCpp.invoke()
+                ProjectorTestCpp.invoke(undefined)
             }
         }
 
@@ -202,7 +202,7 @@ Window {
         id: captureBtn
 
         onClicked: {
-            CameraTestCpp.invoke()
+            CameraTestCpp.invoke(undefined)
         }
 
         anchors {
@@ -278,7 +278,7 @@ Window {
             target: FileSelectCpp
 
             function onFilePathChanged(str) {
-                RecipeCpp.readRecipe(str)
+                RecipeTestCpp.invoke(str)
             }
         }
     }

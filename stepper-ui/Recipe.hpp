@@ -3,33 +3,29 @@
 
 #include "config.hpp"
 
-#include <QWidget>
-#include <QFileInfo>
-
+#include <vector>
 #include <cstdio>
 #include <string.h>
+#include <sys/stat.h>
 
 //Uses TinyXML2: https://github.com/leethomason/tinyxml2/
 //Accessed 13 March 2023. Distributed under zlib license.
 #include "tinyxml2.h"
 using namespace tinyxml2;
 
-class Recipe : public QObject {
-    Q_OBJECT
+class Recipe {
 
 public:
-    Recipe(QObject *parent = nullptr);
+    Recipe() {}
 
-    Q_INVOKABLE
-    bool readRecipe(QString path) {
+    bool readRecipe(const char *path) {
         status = GOOD;
-        XMLDocument doc;
 
         positions.clear();
 
-        if(doc.LoadFile(path.toStdString().c_str()) != XML_SUCCESS) {
+        if(doc.LoadFile(path) != XML_SUCCESS) {
 #ifdef DEBUG_MODE_RECIPE
-            printf("[Recipe] Did not find valid xml file at path '%s'\n", path.toStdString().c_str());
+            printf("[Recipe] Did not find valid xml file at path '%s'\n", path);
             fflush(stdout);
 #endif
             status = ERROR;
@@ -37,7 +33,7 @@ public:
         }
 
 #ifdef DEBUG_MODE_RECIPE
-        printf("[Recipe] Found recipe at path '%s'\n", path.toStdString().c_str());
+        printf("[Recipe] Found recipe at path '%s'\n", path);
         fflush(stdout);
 #endif
 
@@ -79,8 +75,8 @@ private:
 
     //later, encapsulate these in a separate object called a "Design"
     float exposureTime;
-    QString patternPath;
-    QString markPath;
+    const char *patternPath;
+    const char *markPath;
 
     struct Point {
         float x;
@@ -88,6 +84,8 @@ private:
     };
 
     std::vector<Point> positions;
+
+    XMLDocument doc;
 
     enum Status {
         GOOD,
@@ -130,7 +128,7 @@ private:
     }
 
     //returns true if found and correct, false otherwise
-    bool readPathElement(XMLElement *parent, const char elementName[64], QString *dest, bool required) {
+    bool readPathElement(XMLElement *parent, const char elementName[64], const char **dest, bool required) {
         XMLElement *pathElem = parent->FirstChildElement(elementName);
 
         if(!pathElem) {
@@ -163,10 +161,10 @@ private:
             return false;
         }
 
-        QString elemStr(elemText);
-        QFileInfo qfi(elemStr);
+        struct stat fileInfo;
 
-        if(!QFileInfo::exists(elemStr) || !qfi.isFile()) {
+        //check if path exists and refers to a readable file
+        if(stat(elemText, &fileInfo) != 0 || !S_ISREG(fileInfo.st_mode)) {
 #ifdef DEBUG_MODE_RECIPE
             char msg[256] = "element '";
             strncat(msg, elementName, strlen(elementName));
@@ -179,7 +177,7 @@ private:
             return false;
         }
 
-        *dest = elemStr;
+        *dest = elemText;
         return true;
     }
 
@@ -252,8 +250,8 @@ private:
         printf("[Recipe] Recipe info:\n");
         printf("  Wafer size is %f millimeters.\n", waferSize);
         printf("  Exposure time is %f seconds.\n", exposureTime);
-        printf("  Pattern image is located at %s.\n", patternPath.toStdString().c_str());
-        printf("  Alignment mark image is located at %s.\n", markPath.toStdString().c_str());
+        printf("  Pattern image is located at %s.\n", patternPath);
+        printf("  Alignment mark image is located at %s.\n", markPath);
         printf("  Die positions:\n");
 
         for(int i = 0; i < (int) positions.size(); i++) {
@@ -264,9 +262,6 @@ private:
 #endif
     }
 };
-
-inline Recipe::Recipe(QObject *parent) : QObject(parent)
-{}
 
 #endif // RECIPE_H
 

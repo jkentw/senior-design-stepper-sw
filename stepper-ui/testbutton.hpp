@@ -2,24 +2,25 @@
 #define TESTBUTTON_HPP
 
 #include <QWidget>
+#include <QVariant>
 
 class TestButton : public QObject
 {
     Q_OBJECT
 public:
-    TestButton(void (*action)(void *params)) : QObject(nullptr) {
+    TestButton(void (*action)(QVariant params)) : QObject(nullptr) {
         this->action = action;
     }
 
     virtual ~TestButton() {}
 
     Q_INVOKABLE
-    void invoke() { //void *params
-        action(nullptr);
+    void invoke(QVariant params) { //void *params
+        action(params);
     }
 
 private:
-    void (*action)(void *params);
+    void (*action)(QVariant params);
 };
 
 #endif // TESTBUTTON_HPP

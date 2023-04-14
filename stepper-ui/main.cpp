@@ -16,8 +16,8 @@
 #include "projectormodule.hpp"
 #include "cameramodule.hpp"
 
-void testI2c(void *params) {
-    printf("beginning test\n");
+void testI2c(QVariant params) {
+    printf("Beginning test\n");
     fflush(stdout);
 
     stagecontroller::openI2c();
@@ -60,7 +60,7 @@ void testI2c(void *params) {
 
 static bool showing = false;
 
-void testProjector(void *params) {
+void testProjector(QVariant params) {
     if(showing) {
         projectormodule::hide();
     }
@@ -71,10 +71,15 @@ void testProjector(void *params) {
     showing = !showing;
 }
 
-void testCamera(void *params) {
+void testCamera(QVariant params) {
     if(camera_module::openCamera()) { //redundant calls simply return true if camera is open
         camera_module::captureImage();
     }
+}
+
+void testRecipe(QVariant params) {
+    Recipe recipe;
+    recipe.readRecipe(params.toString().toStdString().c_str());
 }
 
 int main(int argc, char *argv[])
@@ -102,9 +107,9 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("FileSelectCpp", &fileSelect);
 
     //Recipe test code
-    Recipe recipe;
-    engine.rootContext()->setContextObject(&recipe);
-    engine.rootContext()->setContextProperty("RecipeCpp", &recipe);
+    TestButton recipeTestBtn(testRecipe);
+    engine.rootContext()->setContextObject(&recipeTestBtn);
+    engine.rootContext()->setContextProperty("RecipeTestCpp", &recipeTestBtn);
 
     //I2C test code
     TestButton i2cTestBtn(testI2c);

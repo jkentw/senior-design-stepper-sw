@@ -3,7 +3,7 @@
 
 //#define DEBUG_MODE_GLOBAL
 
-//#define DEBUG_MODE_I2C
+#define DEBUG_MODE_I2C
 //#define DEBUG_MODE_CAMERA
 //#define DEBUG_MODE_PROJECTOR
 //#define DEBUG_MODE_DYNAMIC_IMAGE

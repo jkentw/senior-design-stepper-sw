@@ -16,12 +16,54 @@ using namespace tinyxml2;
 class Recipe {
 
 public:
-    Recipe() {}
+    struct Point {
+        float x;
+        float y;
+    };
 
-    bool readRecipe(const char *path) {
-        status = GOOD;
+    Recipe() {
+        erase();
+    }
 
+    std::vector<Point> getDiePositions() {
+        return positions;
+    }
+
+    const char *getMarkPath() {
+        return markPath;
+    }
+
+    const char *getPatternPath() {
+        return patternPath;
+    }
+
+    float getWaferSize() {
+        return waferSize;
+    }
+
+    float getExposureTime() {
+        return exposureTime;
+    }
+
+    bool isFirstLayer() {
+        return firstLayer;
+    }
+
+    bool isValid() {
+        return status == GOOD;
+    }
+
+    void erase() {
         positions.clear();
+        markPath = "";
+        patternPath = "";
+        waferSize = 0;
+        exposureTime = 0;
+    }
+
+    bool read(const char *path) {
+        erase();
+        status = GOOD;
 
         if(doc.LoadFile(path) != XML_SUCCESS) {
 #ifdef DEBUG_MODE_RECIPE
@@ -74,14 +116,10 @@ private:
     float waferSize;
 
     //later, encapsulate these in a separate object called a "Design"
+    bool firstLayer = false;
     float exposureTime;
     const char *patternPath;
     const char *markPath;
-
-    struct Point {
-        float x;
-        float y;
-    };
 
     std::vector<Point> positions;
 
@@ -90,7 +128,7 @@ private:
     enum Status {
         GOOD,
         ERROR
-    } status = GOOD;
+    } status = ERROR;
 
     //returns true if found and correct, false otherwise
     bool readFloatElement(XMLElement *parent, const char elementName[64], float *dest, bool required) {

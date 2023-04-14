@@ -20,34 +20,34 @@ void testI2c(QVariant params) {
     printf("Beginning test\n");
     fflush(stdout);
 
-    stagecontroller::openI2c();
+    stage_controller::openI2c();
 
     __u32 width;
     __u32 height;
     __u32 x;
     __u32 y;
 
-    stagecontroller::addFrame(stagecontroller::CMD_CALIB, 0);
-    stagecontroller::addFrame(stagecontroller::CMD_GETWIDTH, 0);
-    stagecontroller::addFrame(stagecontroller::CMD_GETHEIGHT, 0);
-    stagecontroller::addFrame(stagecontroller::CMD_GETX, 0);
-    stagecontroller::addFrame(stagecontroller::CMD_GETY, 0);
-    stagecontroller::addFrame(stagecontroller::CMD_SETX, 1000);
-    stagecontroller::addFrame(stagecontroller::CMD_SETY, 1000);
-    stagecontroller::addFrame(stagecontroller::CMD_HALT, 0);
+    stage_controller::addFrame(stage_controller::CMD_CALIB, 0);
+    stage_controller::addFrame(stage_controller::CMD_GETWIDTH, 0);
+    stage_controller::addFrame(stage_controller::CMD_GETHEIGHT, 0);
+    stage_controller::addFrame(stage_controller::CMD_GETX, 0);
+    stage_controller::addFrame(stage_controller::CMD_GETY, 0);
+    stage_controller::addFrame(stage_controller::CMD_SETX, 1000);
+    stage_controller::addFrame(stage_controller::CMD_SETY, 1000);
+    stage_controller::addFrame(stage_controller::CMD_HALT, 0);
 
-    stagecontroller::sendNextFrame();
-    stagecontroller::sendNextFrame();
-    stagecontroller::readResponse(&width);
-    stagecontroller::sendNextFrame();
-    stagecontroller::readResponse(&height);
-    stagecontroller::sendNextFrame();
-    stagecontroller::readResponse(&x);
-    stagecontroller::sendNextFrame();
-    stagecontroller::readResponse(&y);
-    stagecontroller::sendNextFrame();
-    stagecontroller::sendNextFrame();
-    stagecontroller::sendNextFrame();
+    stage_controller::sendNextFrame();
+    stage_controller::sendNextFrame();
+    stage_controller::readResponse(&width, NULL);
+    stage_controller::sendNextFrame();
+    stage_controller::readResponse(&height, NULL);
+    stage_controller::sendNextFrame();
+    stage_controller::readResponse(&x, NULL);
+    stage_controller::sendNextFrame();
+    stage_controller::readResponse(&y, NULL);
+    stage_controller::sendNextFrame();
+    stage_controller::sendNextFrame();
+    stage_controller::sendNextFrame();
 
     printf("width:  %d\n", width);
     printf("height: %d\n", height);
@@ -55,17 +55,17 @@ void testI2c(QVariant params) {
     printf("y:      %d\n", y);
     fflush(stdout);
 
-    stagecontroller::closeI2c();
+    stage_controller::closeI2c();
 }
 
 static bool showing = false;
 
 void testProjector(QVariant params) {
     if(showing) {
-        projectormodule::hide();
+        projector_module::hide();
     }
     else {
-        projectormodule::show();
+        projector_module::show();
     }
 
     showing = !showing;
@@ -79,7 +79,7 @@ void testCamera(QVariant params) {
 
 void testRecipe(QVariant params) {
     Recipe recipe;
-    recipe.readRecipe(params.toString().toStdString().c_str());
+    recipe.read(params.toString().toStdString().c_str());
 }
 
 int main(int argc, char *argv[])
@@ -120,10 +120,10 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("ProjectorTestCpp", &projTestBtn);
 
     QImage pattern("../../tests/inputs/pattern4.png");
-    projectormodule::openProjector();
-    projectormodule::setPattern(&pattern);
+    projector_module::openProjector();
+    projector_module::setPattern(&pattern);
 
-    DynamicImage *projectorImage = projectormodule::projectedImage;
+    DynamicImage *projectorImage = projector_module::projectedImage;
     engine.addImageProvider(QString("projector"), projectorImage);
     engine.rootContext()->setContextProperty("ProjectorCpp", projectorImage);
 

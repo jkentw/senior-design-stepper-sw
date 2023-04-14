@@ -29,7 +29,18 @@ DynamicImage *stillImage = NULL;
 static void *stillData = NULL;
 static QImage *stillPtr = NULL;
 
+bool liveImageGood = false;
+bool stillImageGood = false;
+
 static void __stdcall callback(unsigned nEvent, void* pCallbackCtx);
+
+bool liveImageReady() {
+    return liveImageGood;
+}
+
+bool stillImageReady() {
+    return stillImageGood;
+}
 
 bool isOpen() {
     return cameraHandle != NULL;
@@ -51,6 +62,8 @@ bool openCamera() {
     livePtr = NULL;
     stillData = NULL;
     stillPtr = NULL;
+    liveImageGood = false;
+    stillImageGood = false;
 
     if(cameraHandle == NULL) {
 #ifdef DEBUG_MODE_CAMERA
@@ -160,6 +173,9 @@ void closeCamera() {
         stillPtr = NULL;
     }
 
+    liveImageGood = false;
+    stillImageGood = false;
+
 #ifdef DEBUG_MODE_CAMERA
     printf("[CameraModule] Camera closed\n");
     fflush(stdout);
@@ -169,6 +185,9 @@ void closeCamera() {
 bool captureImage() {
     HRESULT hr = Amcam_StartPullModeWithCallback(cameraHandle, &callback, NULL);
     HRESULT hr2 = Amcam_Snap(cameraHandle, 0);
+
+    liveImageGood = false;
+    stillImageGood = false;
 
     if (FAILED(hr)) {
 #ifdef DEBUG_MODE_CAMERA
@@ -198,6 +217,7 @@ void callback(unsigned nEvent, void *pCallbackCtx) {
             printf("[CameraModule] Failed to pull image, hr = %d\n", hr);
             fflush(stdout);
 #endif
+            liveImageGood = false;
         }
         else {
 #ifdef DEBUG_MODE_CAMERA
@@ -207,6 +227,7 @@ void callback(unsigned nEvent, void *pCallbackCtx) {
             QImage img((const uchar *) liveData, liveWidth, liveHeight, QImage::Format_RGB888);
             *livePtr = img;
             liveImage->setImage(livePtr);
+            liveImageGood = true;
         }
     }
     else if(AMCAM_EVENT_STILLIMAGE == nEvent) {
@@ -217,6 +238,7 @@ void callback(unsigned nEvent, void *pCallbackCtx) {
             printf("[CameraModule] Failed to pull image, hr = %d\n", hr);
             fflush(stdout);
 #endif
+            stillImageGood = false;
         }
         else {
 #ifdef DEBUG_MODE_CAMERA
@@ -226,6 +248,7 @@ void callback(unsigned nEvent, void *pCallbackCtx) {
             QImage img((const uchar *) stillData, stillWidth, stillHeight, QImage::Format_RGB888);
             *stillPtr = img;
             stillImage->setImage(stillPtr);
+            stillImageGood = true;
         }
     }
     else {

@@ -3,11 +3,22 @@
 
 #include "config.hpp"
 
+#include "Recipe.hpp"
 #include "cameramodule.hpp"
 #include "projectormodule.hpp"
 #include "stagecontroller.h"
 
 namespace process_control {
+
+//main variables
+Recipe recipe;
+int dieNumber = 0;
+
+//last read motor position in wafer coordinates (millimeters)
+float currentX = 0;
+float currentY = 0;
+
+bool shouldAbort = false;
 
 //each state should be designed for individual testing
 enum ControlState {
@@ -27,13 +38,18 @@ nextState = STATE_RESET;
 enum ControlResult {
     RESULT_GOOD,
     RESULT_ABORTED,
-    RESULT_ERROR
+    RESULT_ERROR,
+    RESULT_PROJECTOR_ERROR,
+    RESULT_CAMERA_ERROR,
+    RESULT_I2C_COMM_ERROR,
+    RESULT_I2C_FRAME_ERROR,
+    RESULT_I2C_BUF_ERROR
 };
 
-bool shouldAbort = false;
-
-enum ControlResult update();    //executes current state or transitions to another state
+enum ControlState getState(); //returns currentState
 enum ControlResult setState(enum ControlState newState); //forces next state to newState
+enum ControlResult update();  //executes current state or transitions to another state
+enum ControlResult abort();
 
 //state entry transition functions
 enum ControlResult enterReset();
@@ -171,20 +187,29 @@ enum ControlResult setState(enum ControlState newState) {
     return update();
 }
 
+enum ControlState getState() {
+    return currentState;
+}
+
+enum ControlResult abort() {
+    shouldAbort = true;
+    return update();
+}
+
 enum ControlResult enterReset() {
     //close all open devices
 
-    if(projectormodule::isOpen()) {
-        projectormodule::closeProjector();
+    if(projector_module::isOpen()) {
+        projector_module::closeProjector();
     }
 
     if(camera_module::isOpen()) {
         camera_module::closeCamera();
     }
 
-    if(stagecontroller::isOpen()) {
-        stagecontroller::closeI2c();
-        stagecontroller::clearBuffer();
+    if(stage_controller::isOpen()) {
+        stage_controller::closeI2c();
+        stage_controller::clearBuffer();
     }
 
     nextState = STATE_AWAIT_UPLOAD;
@@ -195,40 +220,39 @@ enum ControlResult enterReset() {
 //no need for executeReset()
 
 enum ControlResult exitReset() {
-    if(!projectormodule::openProjector()) {
+    if(!projector_module::openProjector()) {
         nextState = STATE_ERROR;
-        return RESULT_ERROR;
+        return RESULT_PROJECTOR_ERROR;
     }
 
     if(!camera_module::openCamera()) {
         nextState = STATE_ERROR;
-        return RESULT_ERROR;
+        return RESULT_CAMERA_ERROR;
     }
 
-    if(!stagecontroller::openI2c()) {
+    if(!stage_controller::openI2c()) {
         nextState = STATE_ERROR;
-        return RESULT_ERROR;
+        return RESULT_I2C_COMM_ERROR;
     }
 
     return RESULT_GOOD;
 }
 
 enum ControlResult enterAwaitUpload() {
-    //clear existing recipe
+    recipe.erase();
     return RESULT_GOOD;
 }
 
 enum ControlResult executeAwaitUpload() {
-    //if new/different recipe uploaded
-        //parse recipe
-    //if recipe uploaded and is valid
-        //next state is ready state
-    //else
-        //report error if invalid
+    if(recipe.isValid()) {
+        nextState = STATE_READY;
+    }
+
     return RESULT_GOOD;
 }
 
 enum ControlResult exitAwaitUpload() {
+    dieNumber = 0;
     //locate alignment marks on pattern
     //optimize internal representation, if applicable
     return RESULT_GOOD;
@@ -246,49 +270,132 @@ enum ControlResult executeReady() {
 }
 
 enum ControlResult exitReady() {
+    dieNumber = 0;
     //wait for motors to be not moving
     return RESULT_GOOD;
 }
 
 enum ControlResult enterCoarseAlign() {
-    //get coordinates of next die from recipe structure
-    //update wafer display on UI (if applicable)
-    //stage_controller setX and setY
+    //get wafer coordinates in millimeters
+    float xmm = recipe.getDiePositions()[dieNumber].x;
+    float ymm = recipe.getDiePositions()[dieNumber].y;
+
+    //convert to motor coordinates
+    __u32 motorX = (__u32) (xmm * 1000000);
+    __u32 motorY = (__u32) (ymm * 1000000);
+
+    //set up x and y positioning commands
+    bool status = stage_controller::addFrame(stage_controller::CMD_SETX, motorX);
+    status &= stage_controller::addFrame(stage_controller::CMD_SETY, motorY);
+    if(!status) return RESULT_I2C_BUF_ERROR;
+
+    //send setX command
+    status &= stage_controller::sendNextFrame();
+    if(!status) return RESULT_I2C_COMM_ERROR;
+
+    //read response to setX
+    if(stage_controller::GOOD != stage_controller::readResponse(NULL, NULL)) return RESULT_I2C_FRAME_ERROR;
+
+    //send setY command
+    status &= stage_controller::sendNextFrame();
+    if(!status) return RESULT_I2C_COMM_ERROR;
+
+    //read response to setY
+    if(stage_controller::GOOD != stage_controller::readResponse(NULL, NULL)) return RESULT_I2C_FRAME_ERROR;
+
+    //TODO: update wafer display on UI (if applicable)
+
     return RESULT_GOOD;
 }
 
 enum ControlResult executeCoarseAlign() {
-    //motor controller getX and getY
-    //update interface
-    //if status is ready
-        //if recipe specifies "alignment layer", set next state to expose
-        //else, set next state to fine align camera
+    //get x and y position of stage
+    bool status = stage_controller::addFrame(stage_controller::CMD_GETX, 0);
+    status &= stage_controller::addFrame(stage_controller::CMD_GETY, 0);
+    if(!status) return RESULT_I2C_BUF_ERROR;
+
+    //send setX command
+    status &= stage_controller::sendNextFrame();
+    if(!status) return RESULT_I2C_COMM_ERROR;
+
+    //read response to setX
+    __u32 x, y;
+    __u8 stat;
+    if(stage_controller::GOOD != stage_controller::readResponse(&x, &stat)) return RESULT_I2C_FRAME_ERROR;
+
+    //send setY command
+    status &= stage_controller::sendNextFrame();
+    if(!status) return RESULT_I2C_COMM_ERROR;
+
+    //read response to setY
+    if(stage_controller::GOOD != stage_controller::readResponse(&y, &stat)) return RESULT_I2C_FRAME_ERROR;
+
+    //if finished moving, go to next state
+    if(stat == stage_controller::STAGE_IN_POSITION) {
+        if(recipe.isFirstLayer()) {
+            nextState = STATE_EXPOSE;
+        }
+        else {
+            nextState = STATE_FINE_ALIGN_IMAGE;
+        }
+    }
+
+    //convert to wafer coordinates
+    currentX = x / 1000000.0;
+    currentY = y / 1000000.0;
+
+    //TODO: update wafer display on UI (if applicable)
+
     return RESULT_GOOD;
 }
 
 enum ControlResult exitCoarseAlign() {
-    //send halt instruction to motor
+    //initialize halt command
+    bool status = stage_controller::addFrame(stage_controller::CMD_HALT, 0);
+    if(!status) return RESULT_I2C_BUF_ERROR;
+
+    //send halt command
+    status &= stage_controller::sendNextFrame();
+    if(!status) return RESULT_I2C_COMM_ERROR;
+
+    //read response to halt command
+    if(stage_controller::GOOD != stage_controller::readResponse(NULL, NULL)) return RESULT_I2C_FRAME_ERROR;
+
     return RESULT_GOOD;
 }
 
 enum ControlResult enterFineAlignImage() {
-    //capture camera image
+    //capture image and check for error
+    if(!camera_module::captureImage()) {
+        return RESULT_CAMERA_ERROR;
+    }
+
     return RESULT_GOOD;
 }
 
 enum ControlResult executeFineAlignImage() {
-    //if camera image retrieved
-        //next state is STATE_FINE_ALIGN_MOTOR
+    //wait for camera to capture image
+    if(camera_module::stillImageReady()) {
+        //TODO:
+        //locate alignment marks
+        //calculate displacement
+        //set global displacement vector?
+
+        double distance = 0; //absolute value of displacement
+
+        if(distance < 0.01) { //adjust this value as needed
+            nextState = STATE_EXPOSE;
+        }
+        else {
+            nextState = STATE_FINE_ALIGN_MOTOR;
+        }
+    }
+
     return RESULT_GOOD;
 }
 
 enum ControlResult exitFineAlignImage() {
-    //locate alignment marks
-    //calculate displacement
-    //if displacement < epsilon:
-        //set next state to expose
-    //else
-        //send commands to motors
+    //???
     return RESULT_GOOD;
 }
 
@@ -298,15 +405,53 @@ enum ControlResult enterFineAlignMotor() {
 }
 
 enum ControlResult executeFineAlignMotor() {
-    //get x and y of motor
-    //update wafer view
-    //if motor is done
-        //next state is STATE_FINE_ALIGN_IMAGE
+    //get x and y position of stage
+    bool status = stage_controller::addFrame(stage_controller::CMD_GETX, 0);
+    status &= stage_controller::addFrame(stage_controller::CMD_GETY, 0);
+    if(!status) return RESULT_I2C_BUF_ERROR;
+
+    //send setX command
+    status &= stage_controller::sendNextFrame();
+    if(!status) return RESULT_I2C_COMM_ERROR;
+
+    //read response to setX
+    __u32 x, y;
+    __u8 stat;
+    if(stage_controller::GOOD != stage_controller::readResponse(&x, &stat)) return RESULT_I2C_FRAME_ERROR;
+
+    //send setY command
+    status &= stage_controller::sendNextFrame();
+    if(!status) return RESULT_I2C_COMM_ERROR;
+
+    //read response to setY
+    if(stage_controller::GOOD != stage_controller::readResponse(&y, &stat)) return RESULT_I2C_FRAME_ERROR;
+
+    //if finished moving, go to next state
+    if(stat == stage_controller::STAGE_IN_POSITION) {
+        nextState = STATE_FINE_ALIGN_IMAGE;
+    }
+
+    //convert to wafer coordinates
+    currentX = x / 1000000.0;
+    currentY = y / 1000000.0;
+
     return RESULT_GOOD;
 }
 
 enum ControlResult exitFineAlignMotor() {
-    //send halt instruction to motor
+    //initialize halt command
+    bool status = stage_controller::addFrame(stage_controller::CMD_HALT, 0);
+    if(!status) return RESULT_I2C_BUF_ERROR;
+
+    //send halt command
+    status &= stage_controller::sendNextFrame();
+    if(!status) return RESULT_I2C_COMM_ERROR;
+
+    //read response to halt command
+    if(stage_controller::GOOD != stage_controller::readResponse(NULL, NULL)) return RESULT_I2C_FRAME_ERROR;
+
+    //CALIB command?
+
     return RESULT_GOOD;
 }
 
@@ -318,12 +463,16 @@ enum ControlResult enterExpose() {
 //executeExpose is not needed, but showing exp. time and time left might help w/ debugging
 
 enum ControlResult exitExpose() {
-    //turn projector off
-    //if there are any dies left
-        //load next die
-        //next state is coarse align
-    //else
-        //next state is state_ready
+    projector_module::hide();
+    dieNumber++;
+
+    if(dieNumber < (int) recipe.getDiePositions().size()) {
+        nextState = STATE_COARSE_ALIGN;
+    }
+    else {
+        nextState = STATE_READY;
+    }
+
     return RESULT_GOOD;
 }
 

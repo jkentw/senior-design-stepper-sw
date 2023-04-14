@@ -8,6 +8,8 @@ QT += widgets
 SOURCES += \
         cameramodule.cpp \
         main.cpp \
+        projectormodule.cpp \
+        stagecontroller.cpp \
         tinyxml2.cpp
 
 RESOURCES += qml.qrc
@@ -24,6 +26,7 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
 HEADERS += \
+    ControlInterface.hpp \
     DynamicImage.h \
     FileSelect.hpp \
     ProcessControl.hpp \

@@ -31,11 +31,14 @@ static QImage *stillPtr = NULL;
 
 static void __stdcall callback(unsigned nEvent, void* pCallbackCtx);
 
-bool openCamera()
-{
+bool isOpen() {
+    return cameraHandle != NULL;
+}
+
+bool openCamera() {
     HRESULT hr;
 
-    if(cameraHandle) {
+    if(isOpen()) {
 #ifdef DEBUG_MODE_CAMERA
         printf("[CameraModule] Camera is already open\n");
         fflush(stdout);
@@ -121,9 +124,8 @@ bool openCamera()
     return true;
 }
 
-void closeCamera()
-{
-    if(cameraHandle) {
+void closeCamera() {
+    if(isOpen()) {
         Amcam_Close(cameraHandle);
         cameraHandle = NULL;
     }
@@ -164,10 +166,10 @@ void closeCamera()
 #endif
 }
 
-bool captureImage()
-{
+bool captureImage() {
     HRESULT hr = Amcam_StartPullModeWithCallback(cameraHandle, &callback, NULL);
     HRESULT hr2 = Amcam_Snap(cameraHandle, 0);
+
     if (FAILED(hr)) {
 #ifdef DEBUG_MODE_CAMERA
         printf("[CameraModule] Failed to start camera, hr = %d\n", hr);
@@ -184,8 +186,7 @@ bool captureImage()
     }
 }
 
-void callback(unsigned nEvent, void *pCallbackCtx)
-{
+void callback(unsigned nEvent, void *pCallbackCtx) {
     HRESULT hr;
     AmcamFrameInfoV2 info = {};
 

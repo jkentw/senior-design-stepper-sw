@@ -30,7 +30,7 @@ const __u32 ERROR_UNEXPECTED_COMMAND = 1 << 28;
 const __u32 ERROR_CHECKSUM = 1 << 27;
 
 //state information
-static int i2cFd = 0;
+static int i2cFd = -1;
 static int writeIndex = 0; //index of next available frame slot
 static int readIndex = 0; //index of next frame to send
 static int bufferLength = 0;
@@ -55,53 +55,34 @@ struct frame {
     __u8 checksum;
 } buffer[BUF_SIZE], response;
 
-static void printErrorInfo(int errsv) {
-    switch (errsv) {
-    case EAGAIN:
-        printf("EAGAIN\n");
-        break;
-    case EBADF:
-        printf("EBADF\n");
-        break;
-    case EDESTADDRREQ:
-        printf("EDESTADDRREQ\n");
-        break;
-    case EDQUOT:
-        printf("EDQUOT\n");
-        break;
-    case EFAULT:
-        printf("EFAULT\n");
-        break;
-    case EFBIG:
-        printf("EFBIG\n");
-        break;
-    case EINTR:
-        printf("EINTR\n");
-        break;
-    case EINVAL:
-        printf("EINVAL\n");
-        break;
-    case EIO:
-        printf("EIO\n");
-        break;
-    case ENOSPC:
-        printf("ENOSPC\n");
-        break;
-    case EPIPE:
-        printf("EPIPE\n");
-        break;
-    case EREMOTEIO:
-        printf("EREMOTEIO\n");
-        break;
-    default:
-        printf("other: %08X\n", errsv);
-        fflush(stdout);
-    }
+//I2C setup
+bool isOpen();
+bool openI2c();
+void closeI2c();
+static void printErrorInfo(int errsv);
+
+//data frame management
+int getBufferLength();
+void clearBuffer();
+void createFrame(struct frame *dest, CommandID command, __u32 data);
+bool addFrame(CommandID command, __u32 data);
+bool addFrame(const struct frame *dest);
+bool sendFrame(const struct frame *frame);
+bool sendNextFrame();
+int readResponse(__u32 *data);
+int processFrame(const struct frame *frame, __u32 *data, int expectedCommand);
+__u8 calcChecksum(const struct frame *frame);
+
+bool isOpen() {
+    return i2cFd != -1;
 }
 
 bool openI2c() {
     int adapter_nr = 1; //should dynamically determine this
     char fname[20];
+
+    if(isOpen())
+        return true;
 
     snprintf(fname, 19, "/dev/i2c-%d", adapter_nr);
     i2cFd = open(fname, O_RDWR);
@@ -111,7 +92,6 @@ bool openI2c() {
         printf("device file '%-19s' not found\n", fname);
         fflush(stdout);
 #endif
-        i2cFd = 0;
         return false;
     }
 
@@ -120,8 +100,7 @@ bool openI2c() {
         printf("error configuring device address\n");
         fflush(stdout);
 #endif
-        close(i2cFd);
-        i2cFd = 0;
+        closeI2c();
         return false;
     }
 
@@ -133,25 +112,25 @@ bool openI2c() {
 }
 
 void closeI2c() {
-    if(i2cFd != 0) {
+    if(isOpen()) {
         if(close(i2cFd) == -1) {
 #ifdef DEBUG_MODE_I2C
             printf("Could not terminate I2C communication.\n");
             fflush(stdout);
 #endif
         }
-
-        i2cFd = 0;
-    }
-
+        else {
+            i2cFd = -1;
 #ifdef DEBUG_MODE_I2C
     printf("I2C communication terminated.\n");
     fflush(stdout);
 #endif
+        }
+    }
 }
 
 //calculates what checksum field should be based frame data
-static __u8 calcChecksum(const struct frame *frame) {
+__u8 calcChecksum(const struct frame *frame) {
     __u8 sum = 0;
     __u8 *bytes = (__u8 *) frame;
 
@@ -162,8 +141,13 @@ static __u8 calcChecksum(const struct frame *frame) {
     return CHECK_VALUE - sum;
 }
 
-static int getBufferLength() {
+int getBufferLength() {
     return bufferLength;
+}
+
+void clearBuffer() {
+    readIndex = (readIndex + bufferLength) % BUF_SIZE; //buffer is circular
+    bufferLength = 0;
 }
 
 void createFrame(struct frame *dest, CommandID command, __u32 data) {
@@ -296,6 +280,50 @@ int readResponse(__u32 *data) {
                response.status, response.checksum);
 #endif
         return processFrame(&response, data, lastCommand);
+    }
+}
+
+static void printErrorInfo(int errsv) {
+    switch (errsv) {
+    case EAGAIN:
+        printf("EAGAIN\n");
+        break;
+    case EBADF:
+        printf("EBADF\n");
+        break;
+    case EDESTADDRREQ:
+        printf("EDESTADDRREQ\n");
+        break;
+    case EDQUOT:
+        printf("EDQUOT\n");
+        break;
+    case EFAULT:
+        printf("EFAULT\n");
+        break;
+    case EFBIG:
+        printf("EFBIG\n");
+        break;
+    case EINTR:
+        printf("EINTR\n");
+        break;
+    case EINVAL:
+        printf("EINVAL\n");
+        break;
+    case EIO:
+        printf("EIO\n");
+        break;
+    case ENOSPC:
+        printf("ENOSPC\n");
+        break;
+    case EPIPE:
+        printf("EPIPE\n");
+        break;
+    case EREMOTEIO:
+        printf("EREMOTEIO\n");
+        break;
+    default:
+        printf("other: %08X\n", errsv);
+        fflush(stdout);
     }
 }
 

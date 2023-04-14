@@ -30,6 +30,7 @@ static QImage *patternImage = nullptr;
 static int width = 0;
 static int height = 0;
 
+bool isOpen();
 bool openProjector();
 void closeProjector();
 void setPattern(QImage image);
@@ -37,10 +38,17 @@ void show();
 void hide();
 void printErrno(int num);
 
+bool isOpen() {
+    return projectorFd >= 0;
+}
+
 bool openProjector() {
     __s32 res;
     struct fb_fix_screeninfo fixedScrInfo;
     struct fb_var_screeninfo varScrInfo;
+
+    if(isOpen())
+        return true;
 
     //get file descriptor of hdmi framebuffer
     projectorFd = open("/dev/fb0", O_RDWR); //make sure this is the correct framebuffer
@@ -97,8 +105,9 @@ bool openProjector() {
     //update width and height here
     //width = varScrInfo.xres;
     //height = varScrInfo.yres;
-    height = 768;
-    width = 1024;
+
+    height = 1080;
+    width = 1920;
 
     blankImage = new QImage(projectormodule::width, projectormodule::height, QImage::Format::Format_RGB888);
     blankImage->fill(Qt::black);
@@ -110,7 +119,7 @@ bool openProjector() {
 }
 
 void closeProjector() {
-    if(projectorFd >= 0) {
+    if(isOpen()) {
         close(projectorFd);
         projectorFd = -1;
     }

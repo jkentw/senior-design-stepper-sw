@@ -1,6 +1,12 @@
 #ifndef PROCESSCONTROL_HPP
 #define PROCESSCONTROL_HPP
 
+#include "config.hpp"
+
+#include "cameramodule.hpp"
+#include "projectormodule.hpp"
+#include "stagecontroller.h"
+
 namespace process_control {
 
 //each state should be designed for individual testing
@@ -20,40 +26,41 @@ nextState = STATE_RESET;
 
 enum ControlResult {
     RESULT_GOOD,
-    RESULT_ABORTED
+    RESULT_ABORTED,
+    RESULT_ERROR
 };
 
 bool shouldAbort = false;
 
-static enum ControlResult update();    //executes current state or transitions to another state
-static enum ControlResult setState(enum ControlState newState); //forces next state to newState
+enum ControlResult update();    //executes current state or transitions to another state
+enum ControlResult setState(enum ControlState newState); //forces next state to newState
 
 //state entry transition functions
-static enum ControlResult enterReset();
-static enum ControlResult enterAwaitUpload();
-static enum ControlResult enterReady();
-static enum ControlResult enterCoarseAlign();
-static enum ControlResult enterFineAlignImage();
-static enum ControlResult enterFineAlignMotor();
-static enum ControlResult enterExpose();
+enum ControlResult enterReset();
+enum ControlResult enterAwaitUpload();
+enum ControlResult enterReady();
+enum ControlResult enterCoarseAlign();
+enum ControlResult enterFineAlignImage();
+enum ControlResult enterFineAlignMotor();
+enum ControlResult enterExpose();
 
 //state functions
-//static enum ControlResult executeReset();
-static enum ControlResult executeAwaitUpload();
-static enum ControlResult executeReady();
-static enum ControlResult executeCoarseAlign();
-static enum ControlResult executeFineAlignImage();
-static enum ControlResult executeFineAlignMotor();
+//enum ControlResult executeReset();
+enum ControlResult executeAwaitUpload();
+enum ControlResult executeReady();
+enum ControlResult executeCoarseAlign();
+enum ControlResult executeFineAlignImage();
+enum ControlResult executeFineAlignMotor();
 //static enum ControlResult executeExpose();
 
 //state exit transition functions
-static enum ControlResult exitReset();
-static enum ControlResult exitAwaitUpload();
-static enum ControlResult exitReady();
-static enum ControlResult exitCoarseAlign();
-static enum ControlResult exitFineAlignImage();
-static enum ControlResult exitFineAlignMotor();
-static enum ControlResult exitExpose();
+enum ControlResult exitReset();
+enum ControlResult exitAwaitUpload();
+enum ControlResult exitReady();
+enum ControlResult exitCoarseAlign();
+enum ControlResult exitFineAlignImage();
+enum ControlResult exitFineAlignMotor();
+enum ControlResult exitExpose();
 
 enum ControlResult update() {
     enum ControlResult result = RESULT_GOOD;
@@ -145,6 +152,8 @@ enum ControlResult update() {
         default:
             nextState = STATE_INVALID;
         }
+
+        //check result here, error handling, etc.
     }
 
     currentState = nextState;
@@ -157,44 +166,59 @@ enum ControlResult update() {
     return result;
 }
 
-static enum ControlResult setState(enum ControlState newState) {
+enum ControlResult setState(enum ControlState newState) {
     nextState = newState;
     return update();
 }
 
-static enum ControlResult enterReset() {
-    //if projector_module on
-        //turn off
-    //if camera_module on
-        //turn off
-    //if I2C on
-        //turn off
+enum ControlResult enterReset() {
+    //close all open devices
 
-    //if no recipe
-        //next state is await upload
-    //else
-        //next state is ready
-    return RESULT_GOOD;
-}
+    if(projectormodule::isOpen()) {
+        projectormodule::closeProjector();
+    }
 
-//probably no need for executeReset()
+    if(camera_module::isOpen()) {
+        camera_module::closeCamera();
+    }
 
-static enum ControlResult exitReset() {
-    //turn on projector (blank image)
-    //turn on camera
-    //turn on I2C
+    if(stagecontroller::isOpen()) {
+        stagecontroller::closeI2c();
+        stagecontroller::clearBuffer();
+    }
 
-    //if error, set to state error
+    nextState = STATE_AWAIT_UPLOAD;
 
     return RESULT_GOOD;
 }
 
-static enum ControlResult enterAwaitUpload() {
-    //invalidate existing recipe
+//no need for executeReset()
+
+enum ControlResult exitReset() {
+    if(!projectormodule::openProjector()) {
+        nextState = STATE_ERROR;
+        return RESULT_ERROR;
+    }
+
+    if(!camera_module::openCamera()) {
+        nextState = STATE_ERROR;
+        return RESULT_ERROR;
+    }
+
+    if(!stagecontroller::openI2c()) {
+        nextState = STATE_ERROR;
+        return RESULT_ERROR;
+    }
+
     return RESULT_GOOD;
 }
 
-static enum ControlResult executeAwaitUpload() {
+enum ControlResult enterAwaitUpload() {
+    //clear existing recipe
+    return RESULT_GOOD;
+}
+
+enum ControlResult executeAwaitUpload() {
     //if new/different recipe uploaded
         //parse recipe
     //if recipe uploaded and is valid
@@ -204,36 +228,36 @@ static enum ControlResult executeAwaitUpload() {
     return RESULT_GOOD;
 }
 
-static enum ControlResult exitAwaitUpload() {
+enum ControlResult exitAwaitUpload() {
     //locate alignment marks on pattern
     //optimize internal representation, if applicable
     return RESULT_GOOD;
 }
 
-static enum ControlResult enterReady() {
+enum ControlResult enterReady() {
     //if wafer view does not exist
         //create wafer view
     return RESULT_GOOD;
 }
 
-static enum ControlResult executeReady() {
+enum ControlResult executeReady() {
     //update wafer view
     return RESULT_GOOD;
 }
 
-static enum ControlResult exitReady() {
+enum ControlResult exitReady() {
     //wait for motors to be not moving
     return RESULT_GOOD;
 }
 
-static enum ControlResult enterCoarseAlign() {
+enum ControlResult enterCoarseAlign() {
     //get coordinates of next die from recipe structure
     //update wafer display on UI (if applicable)
     //stage_controller setX and setY
     return RESULT_GOOD;
 }
 
-static enum ControlResult executeCoarseAlign() {
+enum ControlResult executeCoarseAlign() {
     //motor controller getX and getY
     //update interface
     //if status is ready
@@ -242,23 +266,23 @@ static enum ControlResult executeCoarseAlign() {
     return RESULT_GOOD;
 }
 
-static enum ControlResult exitCoarseAlign() {
+enum ControlResult exitCoarseAlign() {
     //send halt instruction to motor
     return RESULT_GOOD;
 }
 
-static enum ControlResult enterFineAlignImage() {
+enum ControlResult enterFineAlignImage() {
     //capture camera image
     return RESULT_GOOD;
 }
 
-static enum ControlResult executeFineAlignImage() {
+enum ControlResult executeFineAlignImage() {
     //if camera image retrieved
         //next state is STATE_FINE_ALIGN_MOTOR
     return RESULT_GOOD;
 }
 
-static enum ControlResult exitFineAlignImage() {
+enum ControlResult exitFineAlignImage() {
     //locate alignment marks
     //calculate displacement
     //if displacement < epsilon:
@@ -268,12 +292,12 @@ static enum ControlResult exitFineAlignImage() {
     return RESULT_GOOD;
 }
 
-static enum ControlResult enterFineAlignMotor() {
+enum ControlResult enterFineAlignMotor() {
     //send adjustment commands to motors
     return RESULT_GOOD;
 }
 
-static enum ControlResult executeFineAlignMotor() {
+enum ControlResult executeFineAlignMotor() {
     //get x and y of motor
     //update wafer view
     //if motor is done
@@ -281,19 +305,19 @@ static enum ControlResult executeFineAlignMotor() {
     return RESULT_GOOD;
 }
 
-static enum ControlResult exitFineAlignMotor() {
+enum ControlResult exitFineAlignMotor() {
     //send halt instruction to motor
     return RESULT_GOOD;
 }
 
-static enum ControlResult enterExpose() {
+enum ControlResult enterExpose() {
     //turn projector image on and begin timer with time from recipe (should be precise!)
     return RESULT_GOOD;
 }
 
 //executeExpose is not needed, but showing exp. time and time left might help w/ debugging
 
-static enum ControlResult exitExpose() {
+enum ControlResult exitExpose() {
     //turn projector off
     //if there are any dies left
         //load next die

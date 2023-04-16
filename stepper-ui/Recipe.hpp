@@ -53,12 +53,17 @@ public:
         return status == GOOD;
     }
 
+    bool isInvalid() {
+        return status == ERROR;
+    }
+
     void erase() {
         positions.clear();
         markPath = "";
         patternPath = "";
         waferSize = 0;
         exposureTime = 0;
+        status = NONE;
     }
 
     bool read(const char *path) {
@@ -127,8 +132,9 @@ private:
 
     enum Status {
         GOOD,
-        ERROR
-    } status = ERROR;
+        ERROR,
+        NONE
+    } status = NONE;
 
     //returns true if found and correct, false otherwise
     bool readFloatElement(XMLElement *parent, const char elementName[64], float *dest, bool required) {

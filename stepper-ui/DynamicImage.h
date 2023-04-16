@@ -31,6 +31,10 @@ public:
         emit updateImage(*image);
     }
 
+    QImage getImage() {
+        return *image;
+    }
+
     QImage requestImage(const QString &id, QSize *size, const QSize &requestedSize) override {
         if(id == "image") {
             QImage scaled;

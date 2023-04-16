@@ -15,6 +15,7 @@
 #include "stagecontroller.h"
 #include "projectormodule.hpp"
 #include "cameramodule.hpp"
+#include "ControlInterface.hpp"
 
 void testI2c(QVariant params) {
     printf("Beginning test\n");
@@ -103,10 +104,11 @@ int main(int argc, char *argv[])
     engine.addImageProvider(QString("preview"), &imgIn);
     engine.rootContext()->setContextProperty("ImageInputCpp", &imgIn);
 
+
+    //Recipe test code
     FileSelect fileSelect;
     engine.rootContext()->setContextProperty("FileSelectCpp", &fileSelect);
 
-    //Recipe test code
     TestButton recipeTestBtn(testRecipe);
     engine.rootContext()->setContextObject(&recipeTestBtn);
     engine.rootContext()->setContextProperty("RecipeTestCpp", &recipeTestBtn);
@@ -133,7 +135,7 @@ int main(int argc, char *argv[])
 
     DynamicImage *liveImage;
     DynamicImage *stillImage;
-    if(camera_module::openCamera()) {
+    if(camera_module::openCamera() || 1) { //bypass check temporarily
         liveImage = camera_module::liveImage;
         engine.addImageProvider(QString("camera_live"), liveImage);
         engine.rootContext()->setContextProperty("CameraLiveCpp", liveImage);
@@ -142,6 +144,10 @@ int main(int argc, char *argv[])
         engine.addImageProvider(QString("camera_still"), stillImage);
         engine.rootContext()->setContextProperty("CameraStillCpp", stillImage);
     }
+
+    //process control interface
+    ControlInterface control;
+    engine.rootContext()->setContextProperty("ControlCpp", &control);
 
     //end of my code
 

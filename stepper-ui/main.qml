@@ -266,6 +266,7 @@ Window {
 
     //file upload class test
     FileSelectItem {
+        id: recipeSelect
         prompt: "Choose Recipe"
 
         anchors {
@@ -278,8 +279,62 @@ Window {
             target: FileSelectCpp
 
             function onFilePathChanged(str) {
-                RecipeTestCpp.invoke(str)
+                ControlCpp.loadRecipe(str)
             }
+        }
+    }
+
+    Button {
+        id: processUpdateBtn
+
+        onClicked: {
+            ControlCpp.updateOnce()
+        }
+
+        anchors {
+            left: parent.left
+            top: recipeSelect.bottom
+            margins: 25
+        }
+
+        width: 160
+        height: 40
+        text: "UPDATE STATE"
+    }
+
+    Button {
+        id: startStopBtn
+        enabled: false
+
+        property bool isRunning: false
+
+        onClicked: {
+            if(isRunning) {
+                ControlCpp.abort()
+            }
+            else {
+                ControlCpp.start()
+            }
+
+            isRunning = !isRunning
+        }
+
+        anchors {
+            left: parent.left
+            top: processUpdateBtn.bottom
+            margins: 25
+        }
+
+        width: 160
+        height: 40
+        text: "START"
+    }
+
+    Connections {
+        target: ControlCpp
+
+        function onSetStartStopEnabled(en) {
+            startStopBtn.enabled = en
         }
     }
 

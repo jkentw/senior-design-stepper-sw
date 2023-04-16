@@ -7,8 +7,10 @@
 #include <errno.h>
 #include <cstdio>
 #include <fcntl.h>
+#include <ctime>
 
 #include "stagecontroller.h"
+
 
 #ifdef DEBUG_MODE_GLOBAL
     #define DEBUG_MODE_I2C
@@ -29,6 +31,12 @@ static int readIndex = 0; //index of next frame to send
 static int bufferLength = 0;
 static int lastCommand = -1;
 
+static unsigned emulatedX = 0;
+static unsigned emulatedY = 0;
+static unsigned emulatedTargetX = 0;
+static unsigned emulatedTargetY = 0;
+static time_t emulatedCompleteTime = 0;
+
 struct frame buffer[BUF_SIZE], response;
 
 //I2C setup
@@ -47,7 +55,9 @@ bool sendFrame(const struct frame *frame);
 bool sendNextFrame();
 int readResponse(__u32 *data, __u8 *stageStatus);
 int processFrame(const struct frame *frame, __u32 *data, __u8 *stageStatus, int expectedCommand);
+
 static __u8 calcChecksum(const struct frame *frame);
+static void emulate(const struct frame *frame);
 
 bool isOpen() {
     return i2cFd != -1;
@@ -176,7 +186,12 @@ bool addFrame(const struct frame *dest) {
 
 //sends arbitrary frame without advancing buffer
 bool sendFrame(const struct frame *frame) {
+#ifdef EMULATION_MODE_I2C
+    __s32 result = 8;
+    emulate(frame);
+#else
     __s32 result = write(i2cFd, (__u8 *) frame, 8);
+#endif
 
     int errsv = errno;
     if(result == -1) {
@@ -205,6 +220,21 @@ bool sendNextFrame() {
 #endif
         readIndex = (readIndex + 1) % BUF_SIZE; //buffer is circular
         bufferLength--;
+        return true;
+    }
+
+    return false;
+}
+
+//deletes next frame data from queue without sending and advances buffer
+bool deleteNextFrame() {
+    if(getBufferLength() > 0) {
+#ifdef DEBUG_MODE_I2C
+        printf("Removed command of ID #%d from index %d\n", buffer[readIndex].command, readIndex);
+#endif
+        readIndex = (readIndex + 1) % BUF_SIZE; //buffer is circular
+        bufferLength--;
+        return true;
     }
 
     return false;
@@ -262,8 +292,12 @@ int processFrame(const struct frame *frame, __u32 *data, __u8 *stageStatus, int 
 
 //returns status code
 int readResponse(__u32 *data, __u8 *stageStatus) {
+#ifdef EMULATION_MODE_I2C
+    __s32 result = 0;
+    emulate(nullptr);
+#else
     __s32 result = read(i2cFd, (__u8 *) &response, 8);
-
+#endif
     int errsv = errno;
     if(result == -1) {
 #ifdef DEBUG_MODE_I2C
@@ -281,6 +315,200 @@ int readResponse(__u32 *data, __u8 *stageStatus) {
 #endif
         return processFrame(&response, data, stageStatus, lastCommand);
     }
+}
+
+bool halt() {
+    //set up halt command
+    bool status = addFrame(CMD_HALT, 0);
+    if(!status)  {
+        return false;
+    }
+
+    //send halt command
+    status = sendNextFrame();
+    if(!status) {
+        deleteNextFrame(); //delete halt
+        return false;
+    }
+
+    //read response to halt
+    if(GOOD != readResponse(NULL, NULL)) {
+        return false;
+    }
+
+    return true;
+}
+
+bool getPosition(unsigned &x, unsigned &y, unsigned char &status) {
+    //set up x and y positioning commands
+    bool result = addFrame(CMD_GETX, 0);
+    if(!result)  {
+        return false;
+    }
+
+    result = addFrame(CMD_GETY, 0);
+    if(!result) {
+        deleteNextFrame(); //delete getX
+        return false;
+    }
+
+    //send setX command
+    result = sendNextFrame();
+    if(!result) {
+        deleteNextFrame(); //delete getX
+        deleteNextFrame(); //delete getY
+        return false;
+    }
+
+    //read response to getX
+    if(GOOD != readResponse(&x, &status)) {
+        deleteNextFrame(); //delete getY
+        return false;
+    }
+
+    //send setY command
+    result = sendNextFrame();
+    if(!result) {
+        deleteNextFrame(); //delete getY
+        return false;
+    }
+
+    //read response to setY
+    if(GOOD != readResponse(&y, &status)) {
+        return false;
+    }
+
+    return true;
+}
+
+//moves stage to specified location
+bool setPosition(unsigned x, unsigned y) {
+    //set up x and y positioning commands
+    bool status = addFrame(CMD_SETX, x);
+    if(!status)  {
+        return false;
+    }
+
+    status = addFrame(CMD_SETY, y);
+    if(!status) {
+        deleteNextFrame(); //delete setX
+        return false;
+    }
+
+    //send setX command
+    status = sendNextFrame();
+    if(!status) {
+        deleteNextFrame(); //delete setX
+        deleteNextFrame(); //delete setY
+        return false;
+    }
+
+    //read response to setX
+    if(GOOD != readResponse(NULL, NULL)) {
+        deleteNextFrame(); //delete setY
+        halt();
+        return false;
+    }
+
+    //send setY command
+    status = sendNextFrame();
+    if(!status) {
+        deleteNextFrame(); //delete setY
+        halt();
+        return false;
+    }
+
+    //read response to setY
+    if(GOOD != readResponse(NULL, NULL)) {
+        halt();
+        return false;
+    }
+
+    return true;
+}
+
+float microstepsToMillimeters(unsigned microsteps) {
+    return MOTOR_MILLIMETERS_PER_MICROSTEP * microsteps;
+}
+
+unsigned millimetersToMicrosteps(float mm) {
+    return (unsigned) (mm / MOTOR_MILLIMETERS_PER_MICROSTEP + 0.5);
+}
+
+static void emulate(const struct frame *frame) {
+    //process new command, if applicable
+    if(frame != nullptr) {
+        if(frame->magic != 0x5A)
+            return;
+
+        if(frame->checksum != calcChecksum(frame))
+            return;
+
+        switch(frame->command) {
+        case CMD_SETX:
+            time(&emulatedCompleteTime);
+            emulatedCompleteTime += 3; //assuming unit is in seconds
+            emulatedTargetX = frame->data[3] << 24 | frame->data[2] << 16 | frame->data[1] << 8 | frame->data[0];
+            break;
+        case CMD_SETY:
+            time(&emulatedCompleteTime);
+            emulatedCompleteTime += 3; //assuming unit is in seconds
+            emulatedTargetY = frame->data[3] << 24 | frame->data[2] << 16 | frame->data[1] << 8 | frame->data[0];
+            break;
+        case CMD_HALT:
+        case CMD_GETWIDTH:
+        case CMD_GETHEIGHT:
+        case CMD_GETX:
+        case CMD_GETY:
+        case CMD_CALIB:
+        default:
+            break;
+        }
+    }
+
+    //update response packet
+    switch(lastCommand) {
+    case CMD_HALT:
+        createFrame(&response, CMD_HALT, 0);
+        time(&emulatedCompleteTime);
+        break;
+    case CMD_GETWIDTH:
+        createFrame(&response, CMD_GETWIDTH, MOTOR_SPAN_IN_MILLIMETERS/MOTOR_MILLIMETERS_PER_MICROSTEP);
+        break;
+    case CMD_GETHEIGHT:
+        createFrame(&response, CMD_GETHEIGHT, MOTOR_SPAN_IN_MILLIMETERS/MOTOR_MILLIMETERS_PER_MICROSTEP);
+        break;
+    case CMD_GETX:
+        createFrame(&response, CMD_GETX, emulatedX);
+        break;
+    case CMD_GETY:
+        createFrame(&response, CMD_GETY, emulatedY);
+        break;
+    case CMD_SETX:
+        createFrame(&response, CMD_SETX, 0);
+        break;
+    case CMD_SETY:
+        createFrame(&response, CMD_SETY, 0);
+        break;
+    case CMD_CALIB:
+        createFrame(&response, CMD_CALIB, 0);
+        break;
+    default:
+        createFrame(&response, (enum CommandID) 0xFF, 0xFFFFFFFF);
+        response.status = 0xFF;
+    }
+
+    //check if "motors are done moving" and set status accordingly
+    if(time(NULL) >= emulatedCompleteTime) {
+        emulatedX = emulatedTargetX;
+        emulatedY = emulatedTargetY;
+        response.status = STAGE_IN_POSITION;
+    }
+    else {
+        response.status = STAGE_MOVING;
+    }
+
+    response.checksum = calcChecksum(&response);
 }
 
 static void printErrorInfo(int errsv) {

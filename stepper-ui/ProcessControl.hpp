@@ -52,6 +52,7 @@ enum ControlResult {
     RESULT_I2C_COMM_ERROR,
     RESULT_I2C_FRAME_ERROR,
     RESULT_I2C_BUF_ERROR,
+    RESULT_MOTOR_ERROR,
     RESULT_RECIPE_ERROR,
     RESULT_IMAGE_ERROR,
 };
@@ -72,13 +73,13 @@ extern enum ControlResult enterFineAlignMotor();
 extern enum ControlResult enterExpose();
 
 //state functions
-//extern enum ControlResult executeReset();
+extern enum ControlResult executeReset();
 extern enum ControlResult executeAwaitUpload();
 extern enum ControlResult executeReady();
 extern enum ControlResult executeCoarseAlign();
 extern enum ControlResult executeFineAlignImage();
 extern enum ControlResult executeFineAlignMotor();
-//extern enum ControlResult executeExpose();
+extern enum ControlResult executeExpose();
 
 //state exit transition functions
 extern enum ControlResult exitReset();

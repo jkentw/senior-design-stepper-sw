@@ -62,6 +62,7 @@ enum ControlResult {
     RESULT_I2C_COMM_ERROR,
     RESULT_I2C_FRAME_ERROR,
     RESULT_I2C_BUF_ERROR,
+    RESULT_MOTOR_ERROR,
     RESULT_RECIPE_ERROR,
     RESULT_IMAGE_ERROR,
 };
@@ -444,31 +445,16 @@ enum ControlResult enterCoarseAlign() {
     float ymm = recipe.getDiePositions()[dieNumber].y;
 
     //convert to motor coordinates
-    __u32 motorX = (__u32) (xmm * 1000000);
-    __u32 motorY = (__u32) (ymm * 1000000);
+    __u32 motorX = stage_controller::millimetersToMicrosteps(xmm);
+    __u32 motorY = stage_controller::millimetersToMicrosteps(ymm);
 
-    //set up x and y positioning commands
-    bool status = stage_controller::addFrame(stage_controller::CMD_SETX, motorX);
-    status &= stage_controller::addFrame(stage_controller::CMD_SETY, motorY);
-    if(!status) return RESULT_I2C_BUF_ERROR;
-
-    //send setX command
-    status &= stage_controller::sendNextFrame();
-    if(!status) return RESULT_I2C_COMM_ERROR;
-
-    //read response to setX
-    if(stage_controller::GOOD != stage_controller::readResponse(NULL, NULL)) return RESULT_I2C_FRAME_ERROR;
-
-    //send setY command
-    status &= stage_controller::sendNextFrame();
-    if(!status) return RESULT_I2C_COMM_ERROR;
-
-    //read response to setY
-    if(stage_controller::GOOD != stage_controller::readResponse(NULL, NULL)) return RESULT_I2C_FRAME_ERROR;
-
-    //TODO: update wafer display on UI (if applicable)
-
-    return RESULT_GOOD;
+    //move motors
+    if(stage_controller::setPosition(motorX, motorY)) {
+        return RESULT_GOOD;
+    }
+    else {
+        return RESULT_MOTOR_ERROR;
+    }
 }
 
 enum ControlResult executeCoarseAlign() {
@@ -476,27 +462,13 @@ enum ControlResult executeCoarseAlign() {
     printf("[ProcessControl] Executing STATE_COARSE_ALIGN\n");
     fflush(stdout);
 #endif
-
-    //get x and y position of stage
-    bool status = stage_controller::addFrame(stage_controller::CMD_GETX, 0);
-    status &= stage_controller::addFrame(stage_controller::CMD_GETY, 0);
-    if(!status) return RESULT_I2C_BUF_ERROR;
-
-    //send setX command
-    status &= stage_controller::sendNextFrame();
-    if(!status) return RESULT_I2C_COMM_ERROR;
-
-    //read response to setX
     __u32 x, y;
     __u8 stat;
-    if(stage_controller::GOOD != stage_controller::readResponse(&x, &stat)) return RESULT_I2C_FRAME_ERROR;
 
-    //send setY command
-    status &= stage_controller::sendNextFrame();
-    if(!status) return RESULT_I2C_COMM_ERROR;
-
-    //read response to setY
-    if(stage_controller::GOOD != stage_controller::readResponse(&y, &stat)) return RESULT_I2C_FRAME_ERROR;
+    //get x and y position of stage
+    if(!stage_controller::getPosition(x, y, stat)) {
+        return RESULT_MOTOR_ERROR;
+    }
 
     //if finished moving, go to next state
     if(stat == stage_controller::STAGE_IN_POSITION) {
@@ -509,8 +481,8 @@ enum ControlResult executeCoarseAlign() {
     }
 
     //convert to wafer coordinates
-    currentX = x / 1000000.0;
-    currentY = y / 1000000.0;
+    currentX = stage_controller::microstepsToMillimeters(x);
+    currentY = stage_controller::microstepsToMillimeters(y);
 
     //TODO: update wafer display on UI (if applicable)
 
@@ -522,19 +494,13 @@ enum ControlResult exitCoarseAlign() {
     printf("[ProcessControl] Exiting STATE_COARSE_ALIGN\n");
     fflush(stdout);
 #endif
-
-    //initialize halt command
-    bool status = stage_controller::addFrame(stage_controller::CMD_HALT, 0);
-    if(!status) return RESULT_I2C_BUF_ERROR;
-
     //send halt command
-    status &= stage_controller::sendNextFrame();
-    if(!status) return RESULT_I2C_COMM_ERROR;
-
-    //read response to halt command
-    if(stage_controller::GOOD != stage_controller::readResponse(NULL, NULL)) return RESULT_I2C_FRAME_ERROR;
-
-    return RESULT_GOOD;
+    if(stage_controller::halt()) {
+        return RESULT_GOOD;
+    }
+    else {
+        return RESULT_MOTOR_ERROR;
+    }
 }
 
 enum ControlResult enterFineAlignImage() {
@@ -615,50 +581,22 @@ enum ControlResult enterFineAlignMotor() {
     printf("[ProcessControl] Entering STATE_FINE_ALIGN_MOTOR\n");
     fflush(stdout);
 #endif
+    unsigned x, y;
+    unsigned char stat;
 
     //get x and y position of stage
-    bool status = stage_controller::addFrame(stage_controller::CMD_GETX, 0);
-    status &= stage_controller::addFrame(stage_controller::CMD_GETY, 0);
-    if(!status) return RESULT_I2C_BUF_ERROR;
-
-    //send getX command
-    status &= stage_controller::sendNextFrame();
-    if(!status) return RESULT_I2C_COMM_ERROR;
-
-    //read response to getX
-    __u32 x, y;
-    __u8 stat;
-    if(stage_controller::GOOD != stage_controller::readResponse(&x, &stat)) return RESULT_I2C_FRAME_ERROR;
-
-    //send getY command
-    status &= stage_controller::sendNextFrame();
-    if(!status) return RESULT_I2C_COMM_ERROR;
-
-    //read response to getY
-    if(stage_controller::GOOD != stage_controller::readResponse(&y, &stat)) return RESULT_I2C_FRAME_ERROR;
+    if(!stage_controller::getPosition(x, y, stat)) {
+        return RESULT_MOTOR_ERROR;
+    }
 
     //adjust by displacement value
-    x += disp.x;
-    y += disp.y;
+    x += ALIGN_ALPHA * disp.x;
+    y += ALIGN_ALPHA * disp.y;
 
-    //set x and y position of stage
-    status = stage_controller::addFrame(stage_controller::CMD_SETX, x);
-    status &= stage_controller::addFrame(stage_controller::CMD_SETY, y);
-    if(!status) return RESULT_I2C_BUF_ERROR;
-
-    //send setX command
-    status &= stage_controller::sendNextFrame();
-    if(!status) return RESULT_I2C_COMM_ERROR;
-
-    //read response to setX
-    if(stage_controller::GOOD != stage_controller::readResponse(nullptr, &stat)) return RESULT_I2C_FRAME_ERROR;
-
-    //send setY command
-    status &= stage_controller::sendNextFrame();
-    if(!status) return RESULT_I2C_COMM_ERROR;
-
-    //read response to setY
-    if(stage_controller::GOOD != stage_controller::readResponse(nullptr, &stat)) return RESULT_I2C_FRAME_ERROR;
+    //move motors
+    if(!stage_controller::setPosition(x, y)) {
+        return RESULT_MOTOR_ERROR;
+    }
 
     return RESULT_GOOD;
 }
@@ -668,27 +606,13 @@ enum ControlResult executeFineAlignMotor() {
     printf("[ProcessControl] Executing STATE_FINE_ALIGN_MOTOR\n");
     fflush(stdout);
 #endif
+    unsigned x, y;
+    unsigned char stat;
 
     //get x and y position of stage
-    bool status = stage_controller::addFrame(stage_controller::CMD_GETX, 0);
-    status &= stage_controller::addFrame(stage_controller::CMD_GETY, 0);
-    if(!status) return RESULT_I2C_BUF_ERROR;
-
-    //send getX command
-    status &= stage_controller::sendNextFrame();
-    if(!status) return RESULT_I2C_COMM_ERROR;
-
-    //read response to getX
-    __u32 x, y;
-    __u8 stat;
-    if(stage_controller::GOOD != stage_controller::readResponse(&x, &stat)) return RESULT_I2C_FRAME_ERROR;
-
-    //send getY command
-    status &= stage_controller::sendNextFrame();
-    if(!status) return RESULT_I2C_COMM_ERROR;
-
-    //read response to getY
-    if(stage_controller::GOOD != stage_controller::readResponse(&y, &stat)) return RESULT_I2C_FRAME_ERROR;
+    if(!stage_controller::getPosition(x, y, stat)) {
+        return RESULT_MOTOR_ERROR;
+    }
 
     //if finished moving, go to next state
     if(stat == stage_controller::STAGE_IN_POSITION) {
@@ -696,8 +620,8 @@ enum ControlResult executeFineAlignMotor() {
     }
 
     //convert to wafer coordinates
-    currentX = x / 1000000.0;
-    currentY = y / 1000000.0;
+    currentX = stage_controller::microstepsToMillimeters(x);
+    currentY = stage_controller::microstepsToMillimeters(y);
 
     return RESULT_GOOD;
 }
@@ -707,17 +631,10 @@ enum ControlResult exitFineAlignMotor() {
     printf("[ProcessControl] Exiting STATE_FINE_ALIGN_MOTOR\n");
     fflush(stdout);
 #endif
-
-    //initialize halt command
-    bool status = stage_controller::addFrame(stage_controller::CMD_HALT, 0);
-    if(!status) return RESULT_I2C_BUF_ERROR;
-
     //send halt command
-    status &= stage_controller::sendNextFrame();
-    if(!status) return RESULT_I2C_COMM_ERROR;
-
-    //read response to halt command
-    if(stage_controller::GOOD != stage_controller::readResponse(NULL, NULL)) return RESULT_I2C_FRAME_ERROR;
+    if(!stage_controller::halt()) {
+        return RESULT_MOTOR_ERROR;
+    }
 
     //CALIB command?
 

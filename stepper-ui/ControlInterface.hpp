@@ -44,12 +44,16 @@ public:
 
     Q_INVOKABLE
     void start() {
-        process_control::start();
+        process_control::ControlResult status = process_control::start();
+        printf("  Status: %d\n", status);
+        fflush(stdout);
     }
 
     Q_INVOKABLE
     void abort() {
-        process_control::abort();
+        process_control::ControlResult status = process_control::abort();
+        printf("  Status: %d\n", status);
+        fflush(stdout);
     }
 
 signals:

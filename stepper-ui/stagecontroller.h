@@ -64,6 +64,16 @@ extern bool sendFrame(const struct frame *frame);
 extern bool sendNextFrame();
 extern int readResponse(__u32 *data, __u8 *stageStatus);
 extern int processFrame(const struct frame *frame, __u32 *data, __u8 *stageStatus, int expectedCommand);
+
+//motor control convenience functions
+extern bool halt();
+extern bool getPosition(unsigned &x, unsigned &y, unsigned char &status);
+extern bool setPosition(unsigned x, unsigned y);
+
+//unit conversion convenience functions
+extern float microstepsToMillimeters(unsigned microsteps);
+extern unsigned millimetersToMicrosteps(float mm);
+
 }
 
 #endif // STAGECONTROLLER_H

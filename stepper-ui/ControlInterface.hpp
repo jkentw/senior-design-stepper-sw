@@ -2,6 +2,7 @@
 #define CONTROLINTERFACE_HPP
 
 #include <QObject>
+#include <QTimer>
 
 #include "ProcessControl.hpp"
 
@@ -9,7 +10,20 @@ class ControlInterface : public QObject {
     Q_OBJECT
 
 public:
-    ControlInterface() : QObject(nullptr) {}
+    QTimer *timer;
+
+    ControlInterface() : QObject(nullptr) {
+        permanentImageData = new unsigned char[3000*3000]; //this is enough space
+        timer = new QTimer(this);
+        connect(timer, &QTimer::timeout, this, QOverload<>::of(&ControlInterface::updateOnce));
+        timer->start(1000);
+    }
+
+    ~ControlInterface() {
+        delete[] permanentImageData;
+        timer->stop();
+        delete timer;
+    }
 
     Q_INVOKABLE
     bool loadRecipe(QString path) {
@@ -39,6 +53,29 @@ public:
         printf("  Status: %d\n", status);
         fflush(stdout);
 
+        unsigned w, h;
+        unsigned char *img = process_control::imageProcessor.getResult(w, h);
+        printf("  %d, %d\n", w, h);
+        fflush(stdout);
+
+
+        for(int i = 0; i < (int) (w*h); i++) {
+            //permanentImageData[i] = img[i];
+        }
+
+        qimg = QImage((uchar *) img, w, h, QImage::Format_Grayscale8);
+
+        QVector<QRgb> colorTable;
+        colorTable.clear();
+
+        for(int i = 0; i <= 255; i++) {
+            colorTable.append(0xFF000000 | (0x010101 * i));
+        }
+
+        qimg.setColorCount(256);
+        qimg.setColorTable(colorTable);
+        imgProcResult.setImage(&qimg);
+
         return status;
     }
 
@@ -55,6 +92,15 @@ public:
         printf("  Status: %d\n", status);
         fflush(stdout);
     }
+
+    DynamicImage *getImageProcessorResult() {
+        return &imgProcResult;
+    }
+
+private:
+    DynamicImage imgProcResult;
+    QImage qimg;
+    unsigned char *permanentImageData;
 
 signals:
     void setStartStopEnabled(bool enabled);

@@ -17,8 +17,8 @@ public:
     void setImage(const unsigned char *grayscale, unsigned width, unsigned height);
     unsigned char *getResult(unsigned &width, unsigned &height);
 
-    //?
-    void preprocess(unsigned &resultSize);
+    //converts to monochrome
+    void preprocess();
 
     //Performs cross correlation on the working image using the specified kernel input.
     //Zero-pads working image if pad is true

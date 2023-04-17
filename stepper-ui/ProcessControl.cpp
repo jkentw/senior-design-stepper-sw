@@ -199,9 +199,9 @@ enum ControlResult update() {
         }
 
         //check result here, error handling, etc.
+        currentState = nextState;
     }
 
-    currentState = nextState;
 
     if(shouldAbort) {
         result = RESULT_ABORTED;
@@ -248,6 +248,16 @@ enum ControlResult enterReset() {
     if(stage_controller::isOpen()) {
         stage_controller::closeI2c();
         stage_controller::clearBuffer();
+    }
+
+    if(patternPoints != nullptr){
+        delete[] patternPoints;
+        patternPoints = nullptr;
+    }
+
+    if(kernel != nullptr) {
+        delete[] kernel;
+        kernel = nullptr;
     }
 
     return RESULT_GOOD;
@@ -328,7 +338,7 @@ enum ControlResult exitAwaitUpload() {
         kernel = nullptr;
     }
 
-    QImage tmp;
+    QImage tmp; //error found here?
     if(!tmp.load(recipe.getMarkPath())) {
         return RESULT_RECIPE_ERROR;
     }
@@ -343,6 +353,11 @@ enum ControlResult exitAwaitUpload() {
             kernel[kernelWidth*y + x] = ((tmp.pixel(x, y) & 0xFF) > 127 ? 1 : -1);
         }
     }
+
+#ifdef DEBUG_MODE_PROCESS_CONTROL
+    printf("[ProcessControl]   Alignment mark loaded into kernel\n");
+    fflush(stdout);
+#endif
 
     if(!tmp.load(recipe.getPatternPath())) {
         return RESULT_RECIPE_ERROR;
@@ -362,7 +377,38 @@ enum ControlResult exitAwaitUpload() {
     imageProcessor.setImage(pattern, imageWidth, imageHeight);
     delete[] pattern;
 
+#ifdef DEBUG_MODE_PROCESS_CONTROL
+    unsigned w, h;
+    unsigned char *img = imageProcessor.getResult(w, h);
+    for(unsigned y = 0; y < h; y++) {
+        for(unsigned x = 0; x < w; x++) {
+            if(img[imageWidth*y + x] != 0) {
+                //printf("[ProcessControl]   Pattern[%4d][%4d]=%d\n", y, x, img[imageWidth*y + x]);
+                //fflush(stdout);
+            }
+        }
+    }
+
+    printf("[ProcessControl]   Pattern loaded into image processor; performing cross-correlation\n");
+    fflush(stdout);
+#endif
+
     imageProcessor.crossCorrelate(kernel, kernelHeight, kernelHeight, false);
+
+#ifdef DEBUG_MODE_PROCESS_CONTROL
+    img = imageProcessor.getResult(w, h);
+    for(unsigned y = 0; y < h; y++) {
+        for(unsigned x = 0; x < w; x++) {
+            if(img[imageWidth*y + x] != 0) {
+                //printf("[ProcessControl]   CC[%4d][%4d]=%d\n", y, x, img[imageWidth*y + x]);
+                //fflush(stdout);
+            }
+        }
+    }
+
+    printf("[ProcessControl]   Beginning thresholding on pattern\n");
+    fflush(stdout);
+#endif
 
     int threshWidth = -1;
     int maxThreshWidth = -1;
@@ -378,22 +424,37 @@ enum ControlResult exitAwaitUpload() {
     }
 
     if(nMax == 0) {
+#ifdef DEBUG_MODE_PROCESS_CONTROL
+        printf("[ProcessControl]   No threshold found\n");
+        fflush(stdout);
+#endif
         return RESULT_IMAGE_ERROR;
     }
 
     numPoints = nMax;
     imageProcessor.threshold(numPoints);
 
+#ifdef DEBUG_MODE_PROCESS_CONTROL
+    printf("[ProcessControl]   %d alignment marks found; threshold width is %d\n", nMax, maxThreshWidth);
+    fflush(stdout);
+#endif
+
     if(patternPoints != nullptr){
         delete[] patternPoints;
+        patternPoints = nullptr;
     }
 
-    patternPoints = new ImageProcessor::Point[numPoints];
     ImageProcessor::Point *tmpPt = imageProcessor.sortPoints(numPoints);
+    patternPoints = new ImageProcessor::Point[numPoints];
 
     for(unsigned i = 0; i < numPoints; i++) {
         patternPoints[i] = tmpPt[i];
     }
+
+#ifdef DEBUG_MODE_PROCESS_CONTROL
+    printf("[ProcessControl]   Points sorted\n");
+    fflush(stdout);
+#endif
 
     return RESULT_GOOD;
 }
@@ -417,6 +478,7 @@ enum ControlResult executeReady() {
 
     if(shouldStart) {
         nextState = STATE_COARSE_ALIGN;
+        shouldStart = false;
     }
 
     //update wafer view
@@ -511,6 +573,10 @@ enum ControlResult enterFineAlignImage() {
 
     //capture image and check for error
     if(!camera_module::captureImage()) {
+#ifdef DEBUG_MODE_PROCESS_CONTROL
+        printf("[ProcessControl]   Could not capture image\n");
+        fflush(stdout);
+#endif
         return RESULT_CAMERA_ERROR;
     }
 
@@ -525,8 +591,12 @@ enum ControlResult executeFineAlignImage() {
 
     //wait for camera to capture image
     if(camera_module::stillImageReady()) {
+#ifdef DEBUG_MODE_PROCESS_CONTROL
+        printf("[ProcessControl]   Still image captured\n");
+        fflush(stdout);
+#endif
         QImage tmp = camera_module::stillImage->getImage();
-        tmp = tmp.convertToFormat(QImage::Format_Grayscale8);
+        tmp = tmp.convertToFormat(QImage::Format_Grayscale8).scaledToWidth(256).mirrored(true, false);
         unsigned imageWidth = tmp.width();
         unsigned imageHeight = tmp.height();
         unsigned char *copy = new unsigned char[imageWidth * imageHeight];
@@ -540,11 +610,38 @@ enum ControlResult executeFineAlignImage() {
         imageProcessor.setImage(copy, imageWidth, imageHeight);
         delete[] copy;
 
-        //will probably require preprocessing step
+#ifdef DEBUG_MODE_PROCESS_CONTROL
+        printf("[ProcessControl]   Captured image is %dx%d\n", imageWidth, imageHeight);
+        printf("[ProcessControl]   Preprocessing captured image\n");
+        fflush(stdout);
+#endif
+        imageProcessor.preprocess();
+
+#ifdef DEBUG_MODE_PROCESS_CONTROL
+        printf("[ProcessControl]   Performing cross-correlation\n");
+        fflush(stdout);
+#endif
         imageProcessor.crossCorrelate(kernel, kernelHeight, kernelHeight, false);
+        unsigned char *img = imageProcessor.getResult(imageWidth, imageHeight);
+
+        for(int y = 0; y < (int) imageHeight; y++) {
+            for(int x = 0; x < (int) imageWidth; x++) {
+                if(img[imageWidth*y + x] < 208);
+                    //img[imageWidth*y + x] = 0;
+            }
+        }
+
+#ifdef DEBUG_MODE_PROCESS_CONTROL
+        printf("[ProcessControl]   Performing thresholding\n");
+        fflush(stdout);
+#endif
         int threshRange = imageProcessor.threshold(numPoints);
 
         if(threshRange < 0) {
+#ifdef DEBUG_MODE_PROCESS_CONTROL
+            printf("[ProcessControl]   Bad image.\n");
+            fflush(stdout);
+#endif
             return RESULT_IMAGE_ERROR;
         }
 
@@ -555,12 +652,23 @@ enum ControlResult executeFineAlignImage() {
         double distance = sqrt(disp.x*disp.x + disp.y*disp.y); //absolute value of displacement
         distance /= kernelWidth; //scale by kernel size?
 
+#ifdef DEBUG_MODE_PROCESS_CONTROL
+            printf("[ProcessControl]   Displacement is (%d,%d)\n", disp.x, disp.y);
+            fflush(stdout);
+#endif
+
         if(distance < 0.1) { //adjust this value as needed
             nextState = STATE_EXPOSE;
         }
         else {
             nextState = STATE_FINE_ALIGN_MOTOR;
         }
+    }
+    else {
+#ifdef DEBUG_MODE_PROCESS_CONTROL
+        printf("[ProcessControl]   No image acquired\n");
+        fflush(stdout);
+#endif
     }
 
     return RESULT_GOOD;

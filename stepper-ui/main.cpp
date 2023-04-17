@@ -149,6 +149,11 @@ int main(int argc, char *argv[])
     ControlInterface control;
     engine.rootContext()->setContextProperty("ControlCpp", &control);
 
+    DynamicImage *imageProcessorResult;
+    imageProcessorResult = control.getImageProcessorResult();
+    engine.addImageProvider(QString("image_processor"), imageProcessorResult);
+    engine.rootContext()->setContextProperty("ProcessorImageCpp", imageProcessorResult);
+
     //end of my code
 
     engine.load(url);

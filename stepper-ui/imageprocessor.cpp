@@ -7,6 +7,7 @@
 #endif
 
 #include <cmath>
+#include <cstdio>
 
 ImageProcessor::ImageProcessor() {
     width = 0;
@@ -26,10 +27,12 @@ ImageProcessor::ImageProcessor(const unsigned char *grayscale, unsigned width, u
 ImageProcessor::~ImageProcessor() {
     if(data != nullptr) {
         delete[] data;
+        data = nullptr;
     }
 
     if(points != nullptr) {
         delete[] points;
+        points = nullptr;
     }
 }
 
@@ -37,6 +40,7 @@ ImageProcessor::~ImageProcessor() {
 void ImageProcessor::setImage(const unsigned char *grayscale, unsigned width, unsigned height) {
     if(data != nullptr) {
         delete[] data;
+        data = nullptr;
     }
 
     this->width = width;
@@ -55,9 +59,79 @@ unsigned char *ImageProcessor::getResult(unsigned &width, unsigned &height) {
     return data;
 }
 
-//?
-void ImageProcessor::preprocess(unsigned &resultSize) {
+void ImageProcessor::preprocess() {
+    if(data == nullptr)
+        return;
 
+    /*
+    float average = 0;
+    int min = 255;
+    int max = 0;
+
+    for(int y = 0; y < (int) height; y++) {
+        for(int x = 0; x < (int) width; x++) {
+            if(data[width*y + x] > max) {
+                max = data[width*y + x];
+            }
+
+            if(data[width*y + x] < min) {
+                min = data[width*y + x];
+            }
+
+            average += data[width*y + x];
+        }
+    }
+
+    if(width * height != 0)
+        average /= width * height;
+
+    int mid = (max + min) / 2;
+
+    int zeros = 0;
+    int ones = 0;
+
+    for(int y = 0; y < (int) height; y++) {
+        for(int x = 0; x < (int) width; x++) {
+            data[width*y + x] = (data[width*y + x] > (average + mid) / 2) * 255; //convert to monochrome
+            if(data[width*y + x] == 0) {
+                zeros++;
+            }
+            else {
+                ones++;
+            }
+        }
+    }
+
+    printf("zeroes: %d, ones: %d, max: %d, min: %d, avg: %f\n", zeros, ones, max, min, average);
+    fflush(stdout);
+    */
+
+    int kernelSize = 5;
+    float kernel[kernelSize*kernelSize];
+
+    for(int y = 1; y < kernelSize - 1; y++) {
+        for(int x = 1; x < kernelSize - 1; x++) {
+            kernel[kernelSize*y + x] = 0.5;
+        }
+    }
+
+    for(int i = 0; i < kernelSize; i++) {
+        kernel[i] = -0.5;
+        kernel[(kernelSize-1)*kernelSize+i] = -0.5;
+        kernel[kernelSize*i] = -0.5;
+        kernel[kernelSize*i+kernelSize-1] = -0.5;
+    }
+
+
+    for(int i = 0; i < 1; i++) {
+        crossCorrelate(kernel, kernelSize, kernelSize, true);
+
+        for(int y = 0; y < (int) height; y++) {
+            for(int x = 0; x < (int) width; x++) {
+                data[width*y + x] = (data[width*y + x] > 160) * 255; //convert to monochrome
+            }
+        }
+    }
 }
 
 //kernel is in row major order
@@ -68,8 +142,8 @@ void ImageProcessor::crossCorrelate(const float *kernel, unsigned kw, unsigned k
     unsigned cch = height;
 
     //kernel radius (half kernel width or height)
-    unsigned hkw = kw/2;
-    unsigned hkh = kh/2;
+    int hkw = kw/2;
+    int hkh = kh/2;
 
     //if input image is not padded, result is smaller than input
     if(!pad) {
@@ -82,22 +156,22 @@ void ImageProcessor::crossCorrelate(const float *kernel, unsigned kw, unsigned k
 
     //cross correlation variables
     float kVal;
-    unsigned ix;
-    unsigned iy;
+    int ix;
+    int iy;
 
     //kernel is outermost loop for optimal performance
-    for(unsigned ky = -hkh; ky < hkh; ky++) {
-        for(unsigned kx = -hkw; kx < hkw; kx++) {
+    for(int ky = -hkh; ky < hkh; ky++) {
+        for(int kx = -hkw; kx < hkw; kx++) {
             kVal = kernel[kw*(ky+hkh) + (kx+hkw)];
 
             //loop through all pixels in output
             for(unsigned y = 0; y < cch; y++) {
                 iy = y+ky + (pad ? hkh : 0);
-                if(iy < 0 || iy > height) continue;
+                if(iy < 0 || iy > (int) height) continue;
 
                 for(unsigned x = 0; x < ccw; x++) {
                     ix = x+kx + (pad ? hkw : 0);
-                    if(ix < 0 || ix > width) continue;
+                    if(ix < 0 || ix > (int) width) continue;
 
                     cc[ccw*y + x] += kVal * data[width*iy + ix];
                 }
@@ -144,14 +218,14 @@ int ImageProcessor::threshold(unsigned n) {
     points = new Point[n] {};
 
     //binary search with two thresholds
-    unsigned bottomLo = 0;
-    unsigned bottomHi = 255;
-    unsigned bottomMid = (bottomHi+bottomLo)/2;
+    int bottomLo = 0;
+    int bottomHi = 255;
+    int bottomMid;
     unsigned bottomCount;
 
-    unsigned topLo = 0;
-    unsigned topHi = 255;
-    unsigned topMid = (topHi+topLo)/2;
+    int topLo = 0;
+    int topHi = 255;
+    int topMid;
     unsigned topCount;
 
     while(topHi >= topLo || bottomHi >= bottomLo) {
@@ -159,6 +233,11 @@ int ImageProcessor::threshold(unsigned n) {
         topCount = 0;
         bottomMid = (bottomHi+bottomLo)/2;
         topMid = (topHi+topLo)/2;
+
+#ifdef DEBUG_MODE_IMAGE_PROCESSOR
+        printf("[ImageProcessor] threshold(n=%d) topMid=%d, bottomMid=%d\n", n, topMid, bottomMid);
+        fflush(stdout);
+#endif
 
         //loop through all pixels
         for(unsigned y = 0; y < height; y++) {
@@ -189,11 +268,14 @@ int ImageProcessor::threshold(unsigned n) {
 
         narrow:
         if(bottomHi >= bottomLo) {
-            if(bottomCount <= n) { //threshold too high or just right; decrease for lower bound
-                bottomHi = bottomMid - 1;
-            }
-            else if(bottomCount > n) { //threshold too low
+            if(bottomCount > n) { //threshold too low
                 bottomLo = bottomMid + 1;
+            }
+            else { //threshold too high or just right; decrease for lower bound
+                bottomHi = bottomMid - 1;
+
+                if(bottomCount == n)
+                    numPoints = bottomCount;
             }
         }
 
@@ -201,16 +283,16 @@ int ImageProcessor::threshold(unsigned n) {
             if(topCount < n) { //threshold too high
                 topHi = topMid - 1;
             }
-            else if(topCount >= n) { //threshold too low or just right; increase for upper bound
+            else { //threshold too low or just right; increase for upper bound
                 topLo = topMid + 1;
+
+                if(topCount == n)
+                    numPoints = topCount;
             }
         }
     }
 
-    if(topMid >= bottomMid) {
-        numPoints = bottomCount;
-    }
-    else {
+    if(topMid < bottomMid) {
         numPoints = 0;
     }
 
@@ -226,20 +308,23 @@ ImageProcessor::Point *ImageProcessor::sortPoints(unsigned &nPoints) {
 
     Point tmp;
 
-    unsigned span = 1;
-    for(unsigned i = 0; i+span < numPoints; i++) {
-        while(i+span < numPoints && points[i+span].y - points[i].y < (int) IMAGE_PROCESSOR_SORT_EPSILON) {
+    int span = 1;
+    for(int i = 0; i+span < (int) numPoints; i++) {
+        while(i+span < (int) numPoints && points[i+span].y - points[i].y < (int) IMAGE_PROCESSOR_SORT_EPSILON) {
             span++;
         }
+
+        printf("I am sorting %d points and my indices are i=%d and span=%d\n", numPoints, i, span);
+        fflush(stdout);
 
         //if we have multiple points that have similar y-coordinates, sort them by x
         if(span > 1) {
             //Insertion sort is an O(n^2) algorithm but it's okay with just a few elements
-            for(unsigned j = 0; j < span; j++) {
+            for(int j = 0; j < span; j++) {
                 tmp = points[i+j];
-                unsigned k;
+                int k;
 
-                for(k = j-1; k >= 0 && points[i+k].x > tmp.x; k++) {
+                for(k = j-1; k >= 0 && points[i+k].x > tmp.x; k--) {
                     points[i+k+1] = points[i+k];
                 }
 

@@ -311,9 +311,12 @@ Window {
         onClicked: {
             if(isRunning) {
                 ControlCpp.abort()
+                text = "START"
             }
             else {
                 ControlCpp.start()
+                text = "ABORT"
+                enabled = false
             }
 
             isRunning = !isRunning
@@ -335,6 +338,30 @@ Window {
 
         function onSetStartStopEnabled(en) {
             startStopBtn.enabled = en
+        }
+    }
+
+    Image {
+        id: imageProcessorResult
+        cache: false
+
+        anchors {
+            left: captureBtn.right
+            top: cameraFeed.bottom
+
+            margins: 25
+        }
+
+        sourceSize.width: 160
+        sourceSize.height: 120
+    }
+
+    Connections {
+        target: ProcessorImageCpp
+
+        function onUpdateImage(img) {
+            imageProcessorResult.source = ""
+            imageProcessorResult.source = "image://image_processor/image"
         }
     }
 

@@ -73,7 +73,11 @@ void testProjector(QVariant params) {
 }
 
 void testCamera(QVariant params) {
-    if(camera_module::openCamera()) { //redundant calls simply return true if camera is open
+    if(camera_module::isOpen()) {
+    //    camera_module::closeCamera();
+    }
+
+    if(camera_module::openCamera()) {
         camera_module::captureImage();
     }
 }

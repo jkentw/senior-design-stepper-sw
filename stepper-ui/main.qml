@@ -158,8 +158,8 @@ Window {
         }
 
         anchors {
-            left: parent.left
-            top: i2cTestBtn.bottom
+            left: i2cTestBtn.right
+            top: parent.top
             margins: 25
         }
 
@@ -206,8 +206,8 @@ Window {
         }
 
         anchors {
-            left: parent.left
-            top: projectorTestBtn.bottom
+            left: projectorTestBtn.right
+            top: parent.top
             margins: 25
         }
 
@@ -221,10 +221,10 @@ Window {
         cache: false
 
         anchors {
-            left: captureBtn.right
-            top: parent.top
+            left: i2cTestBtn.right
+            top: recipeSelect.bottom
 
-            margins: 25
+            leftMargin: 25
         }
 
         sourceSize.width: 160
@@ -246,9 +246,9 @@ Window {
 
         anchors {
             left: cameraFeed.right
-            top: parent.top
+            top: recipeSelect.bottom
 
-            margins: 25
+            leftMargin: 25
         }
 
         sourceSize.width: 320
@@ -346,7 +346,7 @@ Window {
         cache: false
 
         anchors {
-            left: captureBtn.right
+            left: i2cTestBtn.right
             top: cameraFeed.bottom
 
             margins: 25
@@ -360,8 +360,10 @@ Window {
         target: ProcessorImageCpp
 
         function onUpdateImage(img) {
-            imageProcessorResult.source = ""
-            imageProcessorResult.source = "image://image_processor/image"
+            //if(img !== null) {
+                imageProcessorResult.source = ""
+                imageProcessorResult.source = "image://image_processor/image"
+            //}
         }
     }
 

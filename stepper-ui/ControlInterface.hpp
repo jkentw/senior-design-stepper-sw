@@ -16,7 +16,7 @@ public:
         permanentImageData = new unsigned char[3000*3000]; //this is enough space
         timer = new QTimer(this);
         connect(timer, &QTimer::timeout, this, QOverload<>::of(&ControlInterface::updateOnce));
-        timer->start(1000);
+        //timer->start(3000);
     }
 
     ~ControlInterface() {
@@ -72,9 +72,11 @@ public:
             colorTable.append(0xFF000000 | (0x010101 * i));
         }
 
-        qimg.setColorCount(256);
-        qimg.setColorTable(colorTable);
-        imgProcResult.setImage(&qimg);
+        if(!qimg.isNull()) {
+            qimg.setColorCount(256);
+            qimg.setColorTable(colorTable);
+            imgProcResult.setImage(&qimg);
+        }
 
         return status;
     }
